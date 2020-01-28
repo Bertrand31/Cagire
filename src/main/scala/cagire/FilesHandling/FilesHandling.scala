@@ -1,10 +1,10 @@
-package data_structures
+package cagire
 
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import scala.util.hashing.MurmurHash3.stringHash
 import cats.implicits._
 
-object FilesManagement {
+object FilesHandling {
 
   private def genFilename(path: String): Int = {
     val filename = path.split('/').last

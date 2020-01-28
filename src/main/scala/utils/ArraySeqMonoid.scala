@@ -1,4 +1,4 @@
-package data_structures
+package utils
 
 import scala.reflect.ClassTag
 import scala.collection.immutable.ArraySeq

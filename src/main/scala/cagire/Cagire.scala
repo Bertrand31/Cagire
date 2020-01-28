@@ -1,17 +1,17 @@
-package data_structures
+package cagire
 
 import scala.collection.immutable.ArraySeq
 import cats.implicits._
+import utils.Trie
+import utils.ArraySeqMonoid._
 
-final case class Lucene(
+final case class Cagire(
   private val documents: Map[Int, String] = Map(),
   private val invertedIndex: Map[String, Map[Int, ArraySeq[Int]]] = Map(),
   private val indexesTrie: Trie = Trie(),
 ) {
 
-  import ArraySeqMonoid._
-
-  private def ingestLine(docId: Int)(lucene: Lucene, line: (Int, String)): Lucene = {
+  private def ingestLine(docId: Int)(lucene: Cagire, line: (Int, String)): Cagire = {
     val (lineNumber, lineString) = line
     val words = LineSanitizing.lineToWords(lineString)
     val newTrie = lucene.indexesTrie ++ words
@@ -24,8 +24,8 @@ final case class Lucene(
     lucene.copy(invertedIndex=newIndex, indexesTrie=newTrie)
   }
 
-  def ingestFile(path: String): Lucene = {
-    val documentId = FilesManagement.storeDocument(path)
+  def ingestFile(path: String): Cagire = {
+    val documentId = FilesHandling.storeDocument(path)
     val document = DocumentLoader.loadDocumentWithLinesNumbers(documentId)
     val filename = path.split('/').last
     document
@@ -33,7 +33,7 @@ final case class Lucene(
       .copy(documents=this.documents + (documentId -> filename))
   }
 
-  def ingestFiles: IterableOnce[String] => Lucene = _.iterator.foldLeft(this)(_ ingestFile _)
+  def ingestFiles: IterableOnce[String] => Cagire = _.iterator.foldLeft(this)(_ ingestFile _)
 
   def searchWord(word: String): Map[Int, ArraySeq[Int]] =
     invertedIndex.getOrElse(word.toLowerCase, Map())
@@ -62,12 +62,12 @@ final case class Lucene(
   def searchPrefixAndShow: String => Unit = printResults compose searchPrefix
 }
 
-object LuceneTest extends App {
+object CagireTest extends App {
 
-  val lucene = Lucene().ingestFiles(
+  val lucene = Cagire().ingestFiles(
     Seq(
-      "src/main/scala/data_structures/Lucene/documents/damysos.md",
-      "src/main/scala/data_structures/Lucene/documents/loremipsum.txt",
+      "src/main/scala/data_structures/Cagire/documents/damysos.md",
+      "src/main/scala/data_structures/Cagire/documents/loremipsum.txt",
     )
   )
   lucene searchAndShow "foo"

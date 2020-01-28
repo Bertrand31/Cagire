@@ -1,4 +1,4 @@
-package data_structures
+package cagire
 
 import scala.io.Source
 
