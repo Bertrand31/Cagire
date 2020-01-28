@@ -1,6 +1,7 @@
 package cagire
 
 import java.nio.file.{Files, Paths, StandardCopyOption}
+import scala.io.Source
 import scala.util.hashing.MurmurHash3.stringHash
 import cats.implicits._
 
@@ -24,4 +25,15 @@ object FilesHandling {
     )
     filename
   }
+
+  def loadDocument(documentId: Int): Iterator[String] =
+    Source
+      .fromFile(s"$StoragePath/${documentId.toString}")
+      .getLines
+
+  def loadDocumentWithLinesNumbers(documentId: Int): IndexedSeq[(Int, String)] = {
+    val lines = loadDocument(documentId).toArray
+    (1 to lines.length) zip lines
+  }
+
 }

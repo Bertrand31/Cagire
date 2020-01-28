@@ -21,7 +21,7 @@ final case class Cagire(
 
   def ingestFile(path: String): Cagire = {
     val documentId = FilesHandling.storeDocument(path)
-    val document = DocumentLoader.loadDocumentWithLinesNumbers(documentId)
+    val document = FilesHandling.loadDocumentWithLinesNumbers(documentId)
     val filename = path.split('/').last
     document
       .foldLeft(this)(ingestLine(documentId))
@@ -44,7 +44,7 @@ final case class Cagire(
     _.foreach(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.get(documentId)
-      val lines = DocumentLoader.loadDocument(documentId).take(linesMatches.max).toArray
+      val lines = FilesHandling.loadDocument(documentId).take(linesMatches.max).toArray
       println(s"\n${GREEN}${BOLD}$filename:${RESET}")
       linesMatches.distinct.foreach(line => {
         println(s"${YELLOW}$line${RESET}: ${lines(line - 1)}")
@@ -60,8 +60,8 @@ object CagireTest extends App {
 
   val cagire = Cagire().ingestFiles(
     Seq(
-      "src/main/scala/data_structures/Cagire/documents/damysos.md",
-      "src/main/scala/data_structures/Cagire/documents/loremipsum.txt",
+      "src/main/scala/cagire/documents/damysos.md",
+      "src/main/scala/cagire/documents/loremipsum.txt",
     )
   )
   cagire searchAndShow "foo"

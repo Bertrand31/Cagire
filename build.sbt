@@ -4,12 +4,19 @@ version := "1"
 
 scalaVersion := "2.13.1"
 
+val CirceVersion = "0.12.3"
+
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "2.1.0",
   "org.scalatest" %% "scalatest" % "3.1.0",
+  // JSON
+  "io.circe" %% "circe-core" % CirceVersion,
+  "io.circe" %% "circe-generic" % CirceVersion,
+  "io.circe" %% "circe-parser" % CirceVersion,
 )
 
 scalacOptions ++= Seq(
+  "-Ymacro-annotations", // Needed by Circe
   "-deprecation", // Warn about deprecated features
   "-encoding", "UTF-8", // Specify character encoding used by source files
   "-feature", // Emit warning and location for usages of features that should be imported explicitly
