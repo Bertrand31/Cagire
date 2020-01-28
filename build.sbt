@@ -1,4 +1,4 @@
-name := "Scala Data Structures"
+name := "Cagire"
 
 version := "1"
 
