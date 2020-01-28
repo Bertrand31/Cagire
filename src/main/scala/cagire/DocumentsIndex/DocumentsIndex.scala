@@ -13,5 +13,5 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
   def get: Int => String = index
 
   def commit(): Unit =
-    FileUtils.writeFile("documents_index.json", this.index.asJson.noSpaces)
+    FileUtils.writeFileAsync("documents_index.json", this.index.asJson.noSpaces)
 }

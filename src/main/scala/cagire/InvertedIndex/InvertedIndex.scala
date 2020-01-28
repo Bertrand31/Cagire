@@ -20,5 +20,5 @@ final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map
     index.getOrElse(word.toLowerCase, Map())
 
   def commit(): Unit =
-    FileUtils.writeFile("inverted_index.json", this.index.asJson.noSpaces)
+    FileUtils.writeFileAsync("inverted_index.json", this.index.asJson.noSpaces)
 }

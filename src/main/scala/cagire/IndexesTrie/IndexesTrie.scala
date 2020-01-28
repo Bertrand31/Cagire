@@ -1,13 +1,13 @@
-package utils
+package cagire
 
-/* This implementation of a Trie uses Maps instead of Arrays to store the child nodes.
- * This approach is slower to explore, but since we want this Trie to support
+/* This implementation of a IndexesTrie uses Maps instead of Arrays to store the child nodes.
+ * This approach is slower to explore, but since we want this IndexesTrie to support
  * all 16-bits characters of a Scala string, it was either Maps or Arrays of
  * length 65535, which would have blown up memory use.
  */
 
-final case class Trie(
-  private val children: Map[Char, Trie] = Map(),
+final case class IndexesTrie(
+  private val children: Map[Char, IndexesTrie] = Map(),
   private val isFinal: Boolean = false,
 ) {
 
@@ -21,18 +21,18 @@ final case class Trie(
   private def getStringFromIndexes: Seq[Char] => String =
     _.mkString("")
 
-  def +(word: String): Trie = {
-    def insertIndexes(indexes: Seq[Char], trie: Trie): Trie =
+  def +(word: String): IndexesTrie = {
+    def insertIndexes(indexes: Seq[Char], trie: IndexesTrie): IndexesTrie =
       indexes match {
         case head +: Nil => {
-          val newChild = trie.children.getOrElse(head, Trie()).copy(isFinal=true)
+          val newChild = trie.children.getOrElse(head, IndexesTrie()).copy(isFinal=true)
           val newChildren = trie.children + (head -> newChild)
           trie.copy(children=newChildren)
         }
         case head +: tail => {
           val newSubTrie = trie.children.get(head) match {
             case Some(subTrie) => insertIndexes(tail, subTrie)
-            case None => insertIndexes(tail, Trie())
+            case None => insertIndexes(tail, IndexesTrie())
           }
           trie.copy(trie.children + (head -> newSubTrie))
         }
@@ -41,22 +41,10 @@ final case class Trie(
     insertIndexes(getIndexesFromString(word), this)
   }
 
-  def ++(words: IterableOnce[String]): Trie = words.iterator.foldLeft(this)(_ + _)
+  def ++(words: IterableOnce[String]): IndexesTrie = words.iterator.foldLeft(this)(_ + _)
 
-  def ++(trie: Trie): Trie = this ++ trie.keys
-
-  def contains(word: String): Boolean = {
-    def endsOnLastIndex(indexes: Seq[Char], trie: Trie): Boolean =
-      indexes match {
-        case head +: Nil => trie.children.get(head).map(_.isFinal).getOrElse(false)
-        case head +: tail => trie.children.get(head).map(endsOnLastIndex(tail, _)).getOrElse(false)
-      }
-
-    endsOnLastIndex(getIndexesFromString(word), this)
-  }
-
-  def keys(): List[String] = {
-    def descendCharByChar(accumulator: Vector[Char], trie: Trie): List[Vector[Char]] =
+  def keys: List[String] = {
+    def descendCharByChar(accumulator: Vector[Char], trie: IndexesTrie): List[Vector[Char]] =
       trie.children.map({
         case (char, subTrie) if (subTrie.isFinal) => {
           val currentWord = accumulator :+ char
@@ -70,7 +58,7 @@ final case class Trie(
 
   def keysWithPrefix(prefix: String): List[String] = {
 
-    def descendWithPrefix(indexes: Seq[Char], trie: Trie): Option[Trie] =
+    def descendWithPrefix(indexes: Seq[Char], trie: IndexesTrie): Option[IndexesTrie] =
       indexes match {
         case head +: Nil => trie.children.get(head)
         case head +: tail => trie.children.get(head).flatMap(descendWithPrefix(tail, _))
@@ -83,11 +71,9 @@ final case class Trie(
       case Some(subTrie) => subTrie.keys.map(prefix + _)
     }
   }
-
-  lazy val isEmpty: Boolean = this.children.isEmpty
 }
 
-object Trie {
+object IndexesTrie {
 
-  def apply(initialItems: String*): Trie = new Trie ++ initialItems
+  def apply(initialItems: String*): IndexesTrie = new IndexesTrie ++ initialItems
 }

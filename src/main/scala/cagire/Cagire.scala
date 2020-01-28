@@ -2,13 +2,12 @@ package cagire
 
 import scala.collection.immutable.ArraySeq
 import cats.implicits._
-import utils.Trie
 import utils.ArraySeqMonoid._
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
   private val invertedIndex: InvertedIndex = InvertedIndex(),
-  private val indexesTrie: Trie = Trie(),
+  private val indexesTrie: IndexesTrie = IndexesTrie(),
 ) {
 
   private def ingestLine(docId: Int)(cagire: Cagire, line: (Int, String)): Cagire = {
@@ -63,8 +62,8 @@ object CagireTest extends App {
 
   val cagire = Cagire().ingestFiles(
     Seq(
-      "src/main/scala/cagire/documents/damysos.md",
-      "src/main/scala/cagire/documents/loremipsum.txt",
+      "src/main/resources/documents/damysos.md",
+      "src/main/resources/documents/loremipsum.txt",
     )
   )
   cagire searchAndShow "foo"
