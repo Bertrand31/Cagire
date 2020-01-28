@@ -6,22 +6,17 @@ import utils.Trie
 import utils.ArraySeqMonoid._
 
 final case class Cagire(
-  private val documents: Map[Int, String] = Map(),
-  private val invertedIndex: Map[String, Map[Int, ArraySeq[Int]]] = Map(),
+  private val documentsIndex: DocumentsIndex = DocumentsIndex(),
+  private val invertedIndex: InvertedIndex = InvertedIndex(),
   private val indexesTrie: Trie = Trie(),
 ) {
 
-  private def ingestLine(docId: Int)(lucene: Cagire, line: (Int, String)): Cagire = {
+  private def ingestLine(docId: Int)(cagire: Cagire, line: (Int, String)): Cagire = {
     val (lineNumber, lineString) = line
     val words = LineSanitizing.lineToWords(lineString)
-    val newTrie = lucene.indexesTrie ++ words
-    val newIndex = words.foldLeft(lucene.invertedIndex)((index, word) => {
-      val wordOccurences = index.getOrElse(word, Map())
-      val currentMatches = wordOccurences.getOrElse(docId, ArraySeq()) :+ lineNumber
-      val documentAndLinePair = wordOccurences + (docId -> currentMatches)
-      index + (word -> documentAndLinePair)
-    })
-    lucene.copy(invertedIndex=newIndex, indexesTrie=newTrie)
+    val newTrie = cagire.indexesTrie ++ words
+    val newIndex = cagire.invertedIndex.addLine(docId, lineNumber, words)
+    cagire.copy(invertedIndex=newIndex, indexesTrie=newTrie)
   }
 
   def ingestFile(path: String): Cagire = {
@@ -30,17 +25,16 @@ final case class Cagire(
     val filename = path.split('/').last
     document
       .foldLeft(this)(ingestLine(documentId))
-      .copy(documents=this.documents + (documentId -> filename))
+      .copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
   }
 
   def ingestFiles: IterableOnce[String] => Cagire = _.iterator.foldLeft(this)(_ ingestFile _)
 
-  def searchWord(word: String): Map[Int, ArraySeq[Int]] =
-    invertedIndex.getOrElse(word.toLowerCase, Map())
+  def searchWord: String => Map[Int, ArraySeq[Int]] = invertedIndex.searchWord
 
-  def searchPrefix(prefix: String): Map[Int, ArraySeq[Int]] =
+  def searchPrefix: String => Map[Int, ArraySeq[Int]] =
     indexesTrie
-      .keysWithPrefix(prefix)
+      .keysWithPrefix(_)
       .map(searchWord)
       .foldMap(identity)
 
@@ -49,7 +43,7 @@ final case class Cagire(
   private def printResults: Map[Int, ArraySeq[Int]] => Unit =
     _.foreach(matchTpl => {
       val (documentId, linesMatches) = matchTpl
-      val filename = documents(documentId)
+      val filename = documentsIndex.get(documentId)
       val lines = DocumentLoader.loadDocument(documentId).take(linesMatches.max).toArray
       println(s"\n${GREEN}${BOLD}$filename:${RESET}")
       linesMatches.distinct.foreach(line => {
@@ -64,12 +58,12 @@ final case class Cagire(
 
 object CagireTest extends App {
 
-  val lucene = Cagire().ingestFiles(
+  val cagire = Cagire().ingestFiles(
     Seq(
       "src/main/scala/data_structures/Cagire/documents/damysos.md",
       "src/main/scala/data_structures/Cagire/documents/loremipsum.txt",
     )
   )
-  lucene searchAndShow "foo"
-  lucene searchPrefixAndShow "sim"
+  cagire searchAndShow "foo"
+  cagire searchPrefixAndShow "sim"
 }
