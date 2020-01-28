@@ -23,9 +23,12 @@ final case class Cagire(
     val documentId = FilesHandling.storeDocument(path)
     val document = FilesHandling.loadDocumentWithLinesNumbers(documentId)
     val filename = path.split('/').last
-    document
+    val updatedCagire = document
       .foldLeft(this)(ingestLine(documentId))
       .copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
+    updatedCagire.documentsIndex.commit()
+    updatedCagire.invertedIndex.commit()
+    updatedCagire
   }
 
   def ingestFiles: IterableOnce[String] => Cagire = _.iterator.foldLeft(this)(_ ingestFile _)

@@ -1,6 +1,8 @@
 package cagire
 
 import scala.collection.immutable.ArraySeq
+import io.circe.syntax._
+import utils.FileUtils
 
 final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map()) {
 
@@ -16,4 +18,7 @@ final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map
 
   def searchWord(word: String): Map[Int, ArraySeq[Int]] =
     index.getOrElse(word.toLowerCase, Map())
+
+  def commit(): Unit =
+    FileUtils.writeFile("inverted_index.json", this.index.asJson.noSpaces)
 }
