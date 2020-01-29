@@ -40,7 +40,7 @@ object FileUtils {
     catch {
       case t: Throwable => p.failure(t)
     }
-    p.future.map(_ => {})
+    p.future.map(_ => ())
   }
 
   def writeFileAsync(file: String, s: String, charsetName: String = "UTF-8"): Future[Unit] =
@@ -50,7 +50,7 @@ object FileUtils {
     try {
       channel.close()
     } catch {
-      case _: IOException => // TODO: Handle
+      case _: IOException =>
     }
 
   private def onComplete(channel: AsynchronousFileChannel, p: Promise[Array[Byte]]) = {

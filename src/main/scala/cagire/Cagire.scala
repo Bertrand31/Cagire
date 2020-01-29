@@ -20,9 +20,9 @@ final case class Cagire(
 
   def ingestFile(path: String): Cagire = {
     val documentId = FilesHandling.storeDocument(path)
-    val document = FilesHandling.loadDocumentWithLinesNumbers(documentId)
+    val documentLines = FilesHandling.loadDocumentWithLinesNumbers(documentId)
     val filename = path.split('/').last
-    val updatedCagire = document
+    val updatedCagire = documentLines
       .foldLeft(this)(ingestLine(documentId))
       .copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
     updatedCagire.documentsIndex.commitToDisk()
@@ -48,12 +48,24 @@ final case class Cagire(
       val filename = documentsIndex.get(documentId)
       val lines = FilesHandling.loadDocument(documentId).take(linesMatches.max).toArray
       println(s"\n${GREEN}${BOLD}$filename:${RESET}")
-      linesMatches.distinct.foreach(line => {
-        println(s"${YELLOW}$line${RESET}: ${lines(line - 1)}")
-      })
+      linesMatches
+        .distinct
+        .foreach(line => println(s"${YELLOW}$line${RESET}: ${lines(line - 1)}"))
     })
 
   def searchAndShow: String => Unit = printResults compose searchWord
 
   def searchPrefixAndShow: String => Unit = printResults compose searchPrefix
+}
+
+object Cagire {
+
+  def bootstrap(): Cagire = {
+    for {
+      documentsIndex <- DocumentsIndex.hydrate
+      invertedIndex <- InvertedIndex.hydrate
+      indexesTrie = IndexesTrie(invertedIndex.keys:_*)
+      cagire = Cagire(documentsIndex, invertedIndex, indexesTrie)
+    } yield (cagire)
+  }.getOrElse(Cagire())
 }

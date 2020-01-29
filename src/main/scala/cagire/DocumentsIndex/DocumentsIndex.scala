@@ -1,6 +1,7 @@
 package cagire
 
 import scala.util.Try
+import scala.concurrent.Future
 import io.circe.syntax._
 import io.circe.parser.decode
 import utils.FileUtils
@@ -14,7 +15,7 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
 
   def get: Int => String = index
 
-  def commitToDisk(): Unit =
+  def commitToDisk(): Future[Unit] =
     FileUtils.writeFileAsync("documents_index.json", this.index.asJson.noSpaces)
 }
 

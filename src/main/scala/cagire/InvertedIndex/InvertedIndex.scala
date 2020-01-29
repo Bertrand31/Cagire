@@ -1,6 +1,7 @@
 package cagire
 
 import scala.util.Try
+import scala.concurrent.Future
 import scala.collection.immutable.ArraySeq
 import io.circe.syntax._
 import io.circe.parser.decode
@@ -23,7 +24,7 @@ final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map
   def searchWord(word: String): Map[Int, ArraySeq[Int]] =
     index.getOrElse(word.toLowerCase, Map())
 
-  def commitToDisk(): Unit =
+  def commitToDisk(): Future[Unit] =
     FileUtils.writeFileAsync("inverted_index.json", this.index.asJson.noSpaces)
 }
 
