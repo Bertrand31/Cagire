@@ -25,8 +25,8 @@ final case class Cagire(
     val updatedCagire = document
       .foldLeft(this)(ingestLine(documentId))
       .copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
-    updatedCagire.documentsIndex.commit()
-    updatedCagire.invertedIndex.commit()
+    updatedCagire.documentsIndex.commitToDisk()
+    updatedCagire.invertedIndex.commitToDisk()
     updatedCagire
   }
 

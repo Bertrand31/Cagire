@@ -18,12 +18,12 @@ final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map
     this.copy(index=newIndex)
   }
 
-  def keys = this.index.keys
+  def keys = this.index.keys.toIndexedSeq
 
   def searchWord(word: String): Map[Int, ArraySeq[Int]] =
     index.getOrElse(word.toLowerCase, Map())
 
-  def commit(): Unit =
+  def commitToDisk(): Unit =
     FileUtils.writeFileAsync("inverted_index.json", this.index.asJson.noSpaces)
 }
 
