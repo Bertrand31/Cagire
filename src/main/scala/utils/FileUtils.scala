@@ -6,7 +6,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.{AsynchronousFileChannel, CompletionHandler}
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption._
-
+import scala.io.Source
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Try
 
@@ -15,6 +15,13 @@ object FileUtils {
   import ExecutionContext.Implicits.global
 
   private val StoragePath = "src/main/resources"
+
+  def readFile(filename: String): String =
+    Source
+      .fromFile(s"$StoragePath/$filename")
+      .getLines
+      .toArray
+      .mkString
 
   def writeFile(filename: String, data: String): Unit = {
     val file = new File(StoragePath + "/" + filename)

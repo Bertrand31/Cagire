@@ -57,15 +57,3 @@ final case class Cagire(
 
   def searchPrefixAndShow: String => Unit = printResults compose searchPrefix
 }
-
-object CagireTest extends App {
-
-  val cagire = Cagire().ingestFiles(
-    Seq(
-      "src/main/resources/documents/damysos.md",
-      "src/main/resources/documents/loremipsum.txt",
-    )
-  )
-  cagire searchAndShow "foo"
-  cagire searchPrefixAndShow "sim"
-}

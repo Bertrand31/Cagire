@@ -16,6 +16,8 @@ final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map
     this.copy(index=newIndex)
   }
 
+  def keys = this.index.keys
+
   def searchWord(word: String): Map[Int, ArraySeq[Int]] =
     index.getOrElse(word.toLowerCase, Map())
 
