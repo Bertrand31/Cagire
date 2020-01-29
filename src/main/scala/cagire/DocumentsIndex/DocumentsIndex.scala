@@ -2,7 +2,7 @@ package cagire
 
 import scala.util.Try
 import scala.concurrent.Future
-import io.circe.syntax._
+import io.circe.syntax.EncoderOps
 import io.circe.parser.decode
 import utils.FileUtils
 
@@ -21,8 +21,10 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
 
 object DocumentsIndex {
 
+  private val DocumentsIndexFileName = "documents_index.json"
+
   def hydrate(): Try[DocumentsIndex] = {
-    val documentsIndexFile = FileUtils.readFile("documents_index.json")
+    val documentsIndexFile = FileUtils.readFile(DocumentsIndexFileName)
     decode[Map[Int, String]](documentsIndexFile)
       .toTry
       .map(DocumentsIndex(_))

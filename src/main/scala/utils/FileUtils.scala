@@ -1,14 +1,14 @@
 package utils
 
-import java.io.{BufferedWriter, File, FileWriter}
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.nio.channels.{AsynchronousFileChannel, CompletionHandler}
 import java.nio.file.Paths
-import java.nio.file.StandardOpenOption._
+import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.file.StandardOpenOption.{CREATE, WRITE}
+import java.nio.channels.{AsynchronousFileChannel, CompletionHandler}
 import scala.io.Source
-import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Try
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 object FileUtils {
 
@@ -46,19 +46,17 @@ object FileUtils {
   def writeFileAsync(file: String, s: String, charsetName: String = "UTF-8"): Future[Unit] =
     writeAsync(file, s.getBytes(charsetName))
 
-  private def closeSafely(channel: AsynchronousFileChannel) =
+  private def closeSafely(channel: AsynchronousFileChannel): Unit =
     try {
       channel.close()
     } catch {
       case _: IOException =>
     }
 
-  private def onComplete(channel: AsynchronousFileChannel, p: Promise[Array[Byte]]) = {
+  private def onComplete(channel: AsynchronousFileChannel, p: Promise[Array[Byte]]): CompletionHandler[Integer, ByteBuffer] = {
     new CompletionHandler[Integer, ByteBuffer]() {
       def completed(res: Integer, buffer: ByteBuffer): Unit = {
-        p.complete(Try {
-          buffer.array()
-        })
+        p.complete(Try { buffer.array() })
         closeSafely(channel)
       }
 

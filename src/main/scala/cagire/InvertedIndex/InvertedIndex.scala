@@ -3,7 +3,7 @@ package cagire
 import scala.util.Try
 import scala.concurrent.Future
 import scala.collection.immutable.ArraySeq
-import io.circe.syntax._
+import io.circe.syntax.EncoderOps
 import io.circe.parser.decode
 import utils.FileUtils
 
@@ -30,8 +30,10 @@ final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map
 
 object InvertedIndex {
 
+  private def InvertedIndexFileName = "inverted_index.json"
+
   def hydrate(): Try[InvertedIndex] = {
-    val invertedIndexFile = FileUtils.readFile("inverted_index.json")
+    val invertedIndexFile = FileUtils.readFile(InvertedIndexFileName)
     decode[Map[String, Map[Int, ArraySeq[Int]]]](invertedIndexFile)
       .toTry
       .map(InvertedIndex(_))
