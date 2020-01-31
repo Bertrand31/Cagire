@@ -39,7 +39,9 @@ final case class Cagire(
       .map(searchWord)
       .foldMap(identity)
 
-  private def formatResults: Map[Int, Array[Int]] => Map[String, Array[String]] =
+  type Output = Map[String, Array[String]]
+
+  private def formatResults: Map[Int, Array[Int]] => Output =
     _.map(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.get(documentId)
@@ -50,9 +52,9 @@ final case class Cagire(
       (filename, matches)
     }).toMap
 
-  def searchWordAndFormat: String => Map[String, Array[String]] = formatResults compose searchWord
+  def searchWordAndFormat: String => Output = formatResults compose searchWord
 
-  def searchPrefixAndShow: String => Map[String, Array[String]] = formatResults compose searchPrefix
+  def searchPrefixAndShow: String => Output = formatResults compose searchPrefix
 }
 
 object Cagire {

@@ -31,7 +31,3 @@ object Main extends IOApp {
       .drain
       .as(ExitCode.Success)
 }
-
-  // val cagire = Cagire.bootstrap()
-  // cagire.searchPrefixAndShow("sim")
-// }
