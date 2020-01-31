@@ -1,8 +1,7 @@
 package cagire
 
-import scala.collection.immutable.ArraySeq
 import cats.implicits._
-import utils.ArraySeqMonoid._
+import utils.ArrayMonoid._
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
@@ -30,32 +29,30 @@ final case class Cagire(
     updatedCagire
   }
 
-  def ingestFiles: IterableOnce[String] => Cagire = _.iterator.foldLeft(this)(_ ingestFile _)
+  def ingestFiles: Iterable[String] => Cagire = _.foldLeft(this)(_ ingestFile _)
 
-  def searchWord: String => Map[Int, ArraySeq[Int]] = invertedIndex.searchWord
+  def searchWord: String => Map[Int, Array[Int]] = invertedIndex.searchWord
 
-  def searchPrefix: String => Map[Int, ArraySeq[Int]] =
+  def searchPrefix: String => Map[Int, Array[Int]] =
     indexesTrie
       .keysWithPrefix(_)
       .map(searchWord)
       .foldMap(identity)
 
-  import Console._
-
-  private def printResults: Map[Int, ArraySeq[Int]] => Unit =
-    _.foreach(matchTpl => {
+  private def formatResults: Map[Int, Array[Int]] => Map[String, Array[String]] =
+    _.map(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.get(documentId)
       val lines = FilesHandling.loadDocument(documentId).take(linesMatches.max).toArray
-      println(s"\n${GREEN}${BOLD}$filename:${RESET}")
-      linesMatches
+      val matches = linesMatches
         .distinct
-        .foreach(line => println(s"${YELLOW}$line${RESET}: ${lines(line - 1)}"))
-    })
+        .map(line => s"$line: ${lines(line - 1)}")
+      (filename, matches)
+    }).toMap
 
-  def searchAndShow: String => Unit = printResults compose searchWord
+  def searchWordAndFormat: String => Map[String, Array[String]] = formatResults compose searchWord
 
-  def searchPrefixAndShow: String => Unit = printResults compose searchPrefix
+  def searchPrefixAndShow: String => Map[String, Array[String]] = formatResults compose searchPrefix
 }
 
 object Cagire {

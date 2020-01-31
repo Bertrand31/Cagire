@@ -2,21 +2,39 @@ name := "Cagire"
 
 version := "1"
 
-scalaVersion := "2.13.1"
+scalaVersion := "2.12.10"
 
 val CirceVersion = "0.12.3"
+val Http4sVersion = "0.20.17"
+val Specs2Version = "4.1.0"
+val LogbackVersion = "1.2.3"
 
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-core" % "2.1.0",
+  // Web server
+  "org.http4s"    %% "http4s-blaze-server" % Http4sVersion,
+  "org.http4s"    %% "http4s-blaze-client" % Http4sVersion,
+  "org.http4s"    %% "http4s-circe" % Http4sVersion,
+  "org.http4s"    %% "http4s-dsl" % Http4sVersion,
+  // JSON encoding and decoding
+  "io.circe"      %% "circe-generic" % CirceVersion,
+  // Logging
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+  // Tests
+  "org.specs2"    %% "specs2-core" % Specs2Version % "test",
   "org.scalatest" %% "scalatest" % "3.1.0",
+  // Misc
+  "org.typelevel" %% "cats-core" % "2.1.0",
   // JSON
   "io.circe" %% "circe-core" % CirceVersion,
   "io.circe" %% "circe-generic" % CirceVersion,
   "io.circe" %% "circe-parser" % CirceVersion,
 )
 
+addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.10.3")
+
+addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.0")
+
 scalacOptions ++= Seq(
-  "-Ymacro-annotations", // Needed by Circe
   "-deprecation", // Warn about deprecated features
   "-encoding", "UTF-8", // Specify character encoding used by source files
   "-feature", // Emit warning and location for usages of features that should be imported explicitly
@@ -27,4 +45,9 @@ scalacOptions ++= Seq(
   "-Ywarn-macros:after", // Only inspect expanded trees when generating unused symbol warnings
   "-Ywarn-unused:_", // Enables all unused warnings
   "-Ywarn-value-discard", // Warn when non-Unit expression results are unused
+)
+
+scalacOptions in Test --= Seq(
+  "-Xlint:_",
+  "-Ywarn-unused-import",
 )

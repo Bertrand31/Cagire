@@ -2,17 +2,16 @@ package cagire
 
 import scala.util.Try
 import scala.concurrent.Future
-import scala.collection.immutable.ArraySeq
 import io.circe.syntax.EncoderOps
 import io.circe.parser.decode
 import utils.FileUtils
 
-final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map()) {
+final case class InvertedIndex(index: Map[String, Map[Int, Array[Int]]] = Map()) {
 
   def addLine(docId: Int, lineNumber: Int, words: Array[String]): InvertedIndex = {
     val newIndex = words.foldLeft(this.index)((acc, word) => {
       val wordOccurences = acc.getOrElse(word, Map())
-      val currentMatches = wordOccurences.getOrElse(docId, ArraySeq()) :+ lineNumber
+      val currentMatches = wordOccurences.getOrElse(docId, Array()) :+ lineNumber
       val documentAndLinePair = wordOccurences + (docId -> currentMatches)
       acc + (word -> documentAndLinePair)
     })
@@ -21,7 +20,7 @@ final case class InvertedIndex(index: Map[String, Map[Int, ArraySeq[Int]]] = Map
 
   def keys = this.index.keys.toIndexedSeq
 
-  def searchWord(word: String): Map[Int, ArraySeq[Int]] =
+  def searchWord(word: String): Map[Int, Array[Int]] =
     index.getOrElse(word.toLowerCase, Map())
 
   def commitToDisk(): Future[Unit] =
@@ -32,11 +31,12 @@ object InvertedIndex {
 
   private def InvertedIndexFileName = "inverted_index.json"
 
-  private def decodeFile: String => Try[Map[String, Map[Int, ArraySeq[Int]]]] =
-    decode[Map[String, Map[Int, ArraySeq[Int]]]](_).toTry
+  private def decodeFile: String => Try[Map[String, Map[Int, Array[Int]]]] =
+    decode[Map[String, Map[Int, Array[Int]]]](_).toTry
 
   def hydrate(): Try[InvertedIndex] = {
-    FileUtils.readFile(InvertedIndexFileName)
+    FileUtils
+      .readFile(InvertedIndexFileName)
       .flatMap(decodeFile)
       .map(InvertedIndex(_))
   }

@@ -41,7 +41,7 @@ final case class IndexesTrie(
     insertIndexes(getIndexesFromString(word), this)
   }
 
-  def ++(words: IterableOnce[String]): IndexesTrie = words.iterator.foldLeft(this)(_ + _)
+  def ++(words: Iterable[String]): IndexesTrie = words.foldLeft(this)(_ + _)
 
   def keys: List[String] = {
     def descendCharByChar(accumulator: Vector[Char], trie: IndexesTrie): List[Vector[Char]] =
