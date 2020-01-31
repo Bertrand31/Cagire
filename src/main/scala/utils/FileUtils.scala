@@ -1,9 +1,9 @@
 package utils
 
+import scala.util.Try
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.file.Paths
-import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.StandardOpenOption.{CREATE, WRITE}
 import java.nio.channels.{AsynchronousFileChannel, CompletionHandler}
 import scala.io.Source
@@ -16,19 +16,14 @@ object FileUtils {
 
   private val StoragePath = "src/main/resources"
 
-  def readFile(filename: String): String =
-    Source
-      .fromFile(s"$StoragePath/$filename")
-      .getLines
-      .toArray
-      .mkString
-
-  def writeFile(filename: String, data: String): Unit = {
-    val file = new File(StoragePath + "/" + filename)
-    val bw = new BufferedWriter(new FileWriter(file))
-    bw.write(data)
-    bw.close()
-  }
+  def readFile(filename: String): Try[String] =
+    Try {
+      Source
+        .fromFile(s"$StoragePath/$filename")
+        .getLines
+        .toArray
+        .mkString
+    }
 
   def writeAsync(file: String, bytes: Array[Byte]): Future[Unit] = {
     val p = Promise[Array[Byte]]()

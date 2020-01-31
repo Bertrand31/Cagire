@@ -23,10 +23,13 @@ object DocumentsIndex {
 
   private val DocumentsIndexFileName = "documents_index.json"
 
+  private def decodeFile: String => Try[Map[Int, String]] =
+    decode[Map[Int, String]](_).toTry
+
   def hydrate(): Try[DocumentsIndex] = {
-    val documentsIndexFile = FileUtils.readFile(DocumentsIndexFileName)
-    decode[Map[Int, String]](documentsIndexFile)
-      .toTry
+    FileUtils
+      .readFile(DocumentsIndexFileName)
+      .flatMap(decodeFile)
       .map(DocumentsIndex(_))
   }
 }

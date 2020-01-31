@@ -32,10 +32,12 @@ object InvertedIndex {
 
   private def InvertedIndexFileName = "inverted_index.json"
 
+  private def decodeFile: String => Try[Map[String, Map[Int, ArraySeq[Int]]]] =
+    decode[Map[String, Map[Int, ArraySeq[Int]]]](_).toTry
+
   def hydrate(): Try[InvertedIndex] = {
-    val invertedIndexFile = FileUtils.readFile(InvertedIndexFileName)
-    decode[Map[String, Map[Int, ArraySeq[Int]]]](invertedIndexFile)
-      .toTry
+    FileUtils.readFile(InvertedIndexFileName)
+      .flatMap(decodeFile)
       .map(InvertedIndex(_))
   }
 }
