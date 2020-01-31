@@ -48,7 +48,7 @@ object FileUtils {
       case _: IOException =>
     }
 
-  private def onComplete(channel: AsynchronousFileChannel, p: Promise[Array[Byte]]): CompletionHandler[Integer, ByteBuffer] = {
+  private def onComplete(channel: AsynchronousFileChannel, p: Promise[Array[Byte]]): CompletionHandler[Integer, ByteBuffer] =
     new CompletionHandler[Integer, ByteBuffer]() {
       def completed(res: Integer, buffer: ByteBuffer): Unit = {
         p.complete(Try { buffer.array() })
@@ -60,5 +60,4 @@ object FileUtils {
         closeSafely(channel)
       }
     }
-  }
 }

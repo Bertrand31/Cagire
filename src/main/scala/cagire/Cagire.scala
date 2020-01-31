@@ -65,7 +65,6 @@ object Cagire {
       documentsIndex <- DocumentsIndex.hydrate
       invertedIndex <- InvertedIndex.hydrate
       indexesTrie = IndexesTrie(invertedIndex.keys:_*)
-      cagire = Cagire(documentsIndex, invertedIndex, indexesTrie)
-    } yield (cagire)
+    } yield (Cagire(documentsIndex, invertedIndex, indexesTrie))
   }.getOrElse(Cagire())
 }
