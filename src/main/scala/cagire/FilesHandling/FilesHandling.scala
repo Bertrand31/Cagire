@@ -2,14 +2,13 @@ package cagire
 
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import scala.io.Source
-import scala.util.hashing.MurmurHash3.stringHash
+import scala.util.hashing.MurmurHash3
+import utils.FileUtils
 
 object FilesHandling {
 
-  private def genFilename(path: String): Int = {
-    val filename = path.split('/').last
-    Math.abs(stringHash(filename)) // Intended limitation: two identical file names will clash
-  }
+  private def genFilename(path: String): Int =
+    Math.abs(MurmurHash3.orderedHash(FileUtils.readFile(path).get))
 
   private val StoragePath = "src/main/resources"
 
