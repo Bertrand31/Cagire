@@ -14,13 +14,11 @@ object FileUtils {
 
   import ExecutionContext.Implicits.global
 
-  def readFile(path: String): Try[String] =
+  def readFile(path: String): Try[Iterator[String]] =
     Try {
       Source
         .fromFile(path)
         .getLines
-        .toArray
-        .mkString
     }
 
   def writeAsync(file: String, bytes: Array[Byte]): Future[Unit] = {

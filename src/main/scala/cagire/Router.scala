@@ -19,7 +19,8 @@ object Router {
       case req @ POST -> Root / "ingest" =>
         req.as[Array[String]].flatMap(paths => {
           Try { cagire.ingestFiles(paths) } match {
-            case Failure(err) => InternalServerError(err.getMessage)
+            case Failure(err) =>
+              InternalServerError(err.getMessage)
             case Success(newCagire) =>
               cagire = newCagire
               Ok("Ingested")

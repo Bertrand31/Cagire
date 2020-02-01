@@ -31,6 +31,7 @@ object DocumentsIndex {
   def hydrate(): Try[DocumentsIndex] = {
     FileUtils
       .readFile(DocumentsIndexFilePath)
+      .map(_.mkString)
       .flatMap(decodeFile)
       .map(DocumentsIndex(_))
   }

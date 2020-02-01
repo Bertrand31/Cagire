@@ -1,7 +1,6 @@
 package cagire
 
 import cats.implicits._
-import utils.ArrayMonoid._
 import io.circe.syntax._
 import io.circe.Json
 
@@ -39,15 +38,15 @@ final case class Cagire(
   def ingestFiles: Iterable[String] => Cagire =
     _.foldLeft(this)(_ ingestFileHandler _).commitToDisk
 
-  def searchWord: String => Map[Int, Array[Int]] = invertedIndex.searchWord
+  def searchWord: String => Map[Int, Set[Int]] = invertedIndex.searchWord
 
-  def searchPrefix: String => Map[Int, Array[Int]] =
+  def searchPrefix: String => Map[Int, Set[Int]] =
     indexesTrie
       .keysWithPrefix(_)
       .map(searchWord)
       .foldMap(identity)
 
-  private def formatResults: Map[Int, Array[Int]] => Json =
+  private def formatResults: Map[Int, Set[Int]] => Json =
     _.map(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.get(documentId)

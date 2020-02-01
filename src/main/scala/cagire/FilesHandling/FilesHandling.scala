@@ -49,6 +49,6 @@ object FilesHandling {
       }
     }
 
-    def loadLinesFromDocument(documentId: Int, targets: Array[Int]): Map[Int, String] =
-      loadLines(loadDocument(documentId), targets.toSet, 1, Map())
+    def loadLinesFromDocument(documentId: Int, targets: Set[Int]): Map[Int, String] =
+      loadLines(loadDocument(documentId), targets, 1, Map())
 }
