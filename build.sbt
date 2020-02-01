@@ -2,6 +2,8 @@ name := "Cagire"
 
 version := "1"
 
+maintainer := "bertrandjun@gmail.com"
+
 scalaVersion := "2.12.10"
 
 val CirceVersion = "0.12.3"
@@ -51,3 +53,12 @@ scalacOptions in Test --= Seq(
   "-Xlint:_",
   "-Ywarn-unused-import",
 )
+
+javaOptions ++= Seq(
+  "-XX:+CMSClassUnloadingEnabled", // Enable class unloading under the CMS GC
+  "-Xms2g",
+  "-Xmx12g",
+  // "-XX:+UseParNewGC",
+)
+
+enablePlugins(JavaServerAppPackaging)
