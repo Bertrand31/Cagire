@@ -28,10 +28,8 @@ object FilesHandling {
       .fromFile(s"$StoragePath/${documentId.toString}")
       .getLines
 
-  def loadDocumentWithLinesNumbers(documentId: Int): Stream[(Int, String)] = {
-    val lines = loadDocument(documentId).toArray
-    Stream.from(1) zip lines
-  }
+  def loadDocumentWithLinesNumbers(documentId: Int): Stream[(Int, String)] =
+    Stream.from(1) zip loadDocument(documentId).toIterable
 
   /** Loads the required lines from a lazy iterator without holding more than one line
     * in memory at any given point (except from the ones being accumulated).
