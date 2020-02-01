@@ -17,19 +17,25 @@ final case class Cagire(
     cagire.copy(invertedIndex=newIndex, indexesTrie=newTrie)
   }
 
-  def ingestFile(path: String): Cagire = {
+  def commitToDisk(): Cagire = {
+    this.documentsIndex.commitToDisk()
+    this.invertedIndex.commitToDisk()
+    this
+  }
+
+  private def ingestFileHandler(path: String): Cagire = {
     val documentId = FilesHandling.storeDocument(path)
     val documentLines = FilesHandling.loadDocumentWithLinesNumbers(documentId)
     val filename = path.split('/').last
-    val updatedCagire = documentLines
+    documentLines
       .foldLeft(this)(ingestLine(documentId))
       .copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
-    updatedCagire.documentsIndex.commitToDisk()
-    updatedCagire.invertedIndex.commitToDisk()
-    updatedCagire
   }
 
-  def ingestFiles: Iterable[String] => Cagire = _.foldLeft(this)(_ ingestFile _)
+  def ingestFile: String => Cagire = ingestFileHandler(_).commitToDisk
+
+  def ingestFiles: Iterable[String] => Cagire =
+    _.foldLeft(this)(_ ingestFileHandler _).commitToDisk
 
   def searchWord: String => Map[Int, Array[Int]] = invertedIndex.searchWord
 
@@ -39,18 +45,16 @@ final case class Cagire(
       .map(searchWord)
       .foldMap(identity)
 
-  type Output = Map[String, Array[String]]
+  type Output = Map[String, Array[(Int, String)]]
 
   private def formatResults: Map[Int, Array[Int]] => Output =
     _.map(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.get(documentId)
       val lines = FilesHandling.loadDocument(documentId).take(linesMatches.max).toArray
-      val matches = linesMatches
-        .distinct
-        .map(line => s"$line: ${lines(line - 1)}")
-      (filename, matches)
-    }).toMap
+      val matches = linesMatches.distinct.map(line => (line, lines(line - 1)))
+      (filename -> matches)
+    })
 
   def searchWordAndFormat: String => Output = formatResults compose searchWord
 

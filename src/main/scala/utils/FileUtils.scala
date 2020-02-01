@@ -14,12 +14,10 @@ object FileUtils {
 
   import ExecutionContext.Implicits.global
 
-  private val StoragePath = "src/main/resources"
-
-  def readFile(filename: String): Try[String] =
+  def readFile(path: String): Try[String] =
     Try {
       Source
-        .fromFile(s"$StoragePath/$filename")
+        .fromFile(path)
         .getLines
         .toArray
         .mkString

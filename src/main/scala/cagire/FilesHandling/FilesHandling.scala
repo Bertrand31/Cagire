@@ -28,9 +28,9 @@ object FilesHandling {
       .fromFile(s"$StoragePath/${documentId.toString}")
       .getLines
 
-  def loadDocumentWithLinesNumbers(documentId: Int): IndexedSeq[(Int, String)] = {
+  def loadDocumentWithLinesNumbers(documentId: Int): Stream[(Int, String)] = {
     val lines = loadDocument(documentId).toArray
-    (1 to lines.length) zip lines
+    Stream.from(1) zip lines
   }
 
 }

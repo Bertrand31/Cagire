@@ -8,6 +8,8 @@ import utils.FileUtils
 
 final case class InvertedIndex(index: Map[String, Map[Int, Array[Int]]] = Map()) {
 
+   import InvertedIndex._
+
   def addLine(docId: Int, lineNumber: Int, words: Array[String]): InvertedIndex = {
     val newIndex = words.foldLeft(this.index)((acc, word) => {
       val wordOccurences = acc.getOrElse(word, Map())
@@ -24,19 +26,19 @@ final case class InvertedIndex(index: Map[String, Map[Int, Array[Int]]] = Map())
     index.getOrElse(word.toLowerCase, Map())
 
   def commitToDisk(): Future[Unit] =
-    FileUtils.writeFileAsync("inverted_index.json", this.index.asJson.noSpaces)
+    FileUtils.writeFileAsync(InvertedIndexFilePath, this.index.asJson.noSpaces)
 }
 
 object InvertedIndex {
 
-  private def InvertedIndexFileName = "inverted_index.json"
+  private def InvertedIndexFilePath = StoragePath + "/inverted_index.json"
 
   private def decodeFile: String => Try[Map[String, Map[Int, Array[Int]]]] =
     decode[Map[String, Map[Int, Array[Int]]]](_).toTry
 
   def hydrate(): Try[InvertedIndex] = {
     FileUtils
-      .readFile(InvertedIndexFileName)
+      .readFile(InvertedIndexFilePath)
       .flatMap(decodeFile)
       .map(InvertedIndex(_))
   }
