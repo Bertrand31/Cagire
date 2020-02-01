@@ -2,6 +2,8 @@ package cagire
 
 import cats.implicits._
 import utils.ArrayMonoid._
+import io.circe.syntax._
+import io.circe.Json
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
@@ -17,7 +19,7 @@ final case class Cagire(
     cagire.copy(invertedIndex=newIndex, indexesTrie=newTrie)
   }
 
-  def commitToDisk(): Cagire = {
+  private def commitToDisk(): Cagire = {
     this.documentsIndex.commitToDisk()
     this.invertedIndex.commitToDisk()
     this
@@ -45,20 +47,17 @@ final case class Cagire(
       .map(searchWord)
       .foldMap(identity)
 
-  type Output = Map[String, Array[(Int, String)]]
-
-  private def formatResults: Map[Int, Array[Int]] => Output =
+  private def formatResults: Map[Int, Array[Int]] => Json =
     _.map(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.get(documentId)
-      val lines = FilesHandling.loadDocument(documentId).take(linesMatches.max).toArray
-      val matches = linesMatches.distinct.map(line => (line, lines(line - 1)))
+      val matches = FilesHandling.loadLinesFromDocument(documentId, linesMatches)
       (filename -> matches)
-    })
+    }).asJson
 
-  def searchWordAndFormat: String => Output = formatResults compose searchWord
+  def searchWordAndFormat: String => Json = formatResults compose searchWord
 
-  def searchPrefixAndShow: String => Output = formatResults compose searchPrefix
+  def searchPrefixAndShow: String => Json = formatResults compose searchPrefix
 }
 
 object Cagire {

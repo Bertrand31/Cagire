@@ -4,9 +4,7 @@ import scala.util.{Failure, Success, Try}
 import cats.effect.{IO, Sync}
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
-import io.circe.syntax._
-import org.http4s.circe._
-import io.circe.syntax._
+import org.http4s.circe.{jsonEncoder, jsonOf}
 
 object Router {
 
@@ -19,21 +17,20 @@ object Router {
     HttpRoutes.of[IO] {
 
       case req @ POST -> Root / "ingest" =>
-        req.as[Array[String]].flatMap(paths =>
+        req.as[Array[String]].flatMap(paths => {
           Try { cagire.ingestFiles(paths) } match {
             case Failure(err) => InternalServerError(err.getMessage)
-            case Success(newCagire) => {
+            case Success(newCagire) =>
               cagire = newCagire
               Ok("Ingested")
-            }
           }
-        )
+        })
 
       case GET -> Root / "search-prefix" / prefix =>
-        Ok(cagire.searchPrefixAndShow(prefix).asJson)
+        Ok(cagire.searchPrefixAndShow(prefix))
 
       case GET -> Root / "search" / word =>
-        Ok(cagire.searchWordAndFormat(word).asJson)
+        Ok(cagire.searchWordAndFormat(word))
     }
   }
 }

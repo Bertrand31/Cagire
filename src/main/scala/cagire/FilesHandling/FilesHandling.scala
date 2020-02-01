@@ -33,4 +33,25 @@ object FilesHandling {
     Stream.from(1) zip lines
   }
 
+  /** Loads the required lines from a lazy iterator without holding more than one line
+    * in memory at any given point (except from the ones being accumulated).
+    */
+  private def loadLines(
+    document: Iterator[String], targets: Set[Int], current: Int, soFar: Map[Int, String]
+  ): Map[Int, String] =
+    if (targets.isEmpty) soFar
+    else {
+      val head = document.next
+      if (targets.contains(current)) {
+        val newSoFar = soFar + (current -> head)
+        if (!document.hasNext) newSoFar
+        else loadLines(document, targets - current, current + 1, newSoFar)
+      } else {
+        if (!document.hasNext) soFar
+        else loadLines(document, targets, current + 1, soFar)
+      }
+    }
+
+    def loadLinesFromDocument(documentId: Int, targets: Array[Int]): Map[Int, String] =
+      loadLines(loadDocument(documentId), targets.toSet, 1, Map())
 }
