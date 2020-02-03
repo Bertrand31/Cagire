@@ -1,36 +1,48 @@
 package cagire
 
+import java.io.FileWriter
 import scala.util.Try
-import scala.concurrent.Future
-import io.circe.syntax.EncoderOps
-import io.circe.parser.decode
 import utils.FileUtils
 
 final case class DocumentsIndex(index: Map[Int, String] = Map()) {
 
-  import DocumentsIndex._
+  import DocumentsIndex.DocumentsIndexFilePath
 
   def addDocument(documentId: Int, documentName: String): DocumentsIndex =
     this.copy(this.index + (documentId -> documentName))
 
   def get: Int => String = index
 
-  def commitToDisk(): Future[Unit] =
-    FileUtils.writeFileAsync(DocumentsIndexFilePath, this.index.asJson.noSpaces)
+  private val ChunkSize = 10000
+
+  def commitToDisk(): Unit = {
+    val fw = new FileWriter(DocumentsIndexFilePath)
+    this.index
+      .sliding(ChunkSize, ChunkSize)
+      .foreach(chunk => {
+        fw.write {
+          chunk
+            .map({ case (id, filename) => id.toInt + ";" + filename })
+            .mkString("\n") + "\n"
+        }
+    })
+    fw.close
+  }
 }
 
 object DocumentsIndex {
 
-  private val DocumentsIndexFilePath = StoragePath + "/documents_index.json"
-
-  private def decodeFile: String => Try[Map[Int, String]] =
-    decode[Map[Int, String]](_).toTry
+  private val DocumentsIndexFilePath = StoragePath + "/documents_index.csv"
 
   def hydrate(): Try[DocumentsIndex] = {
     FileUtils
       .readFile(DocumentsIndexFilePath)
-      .map(_.mkString)
-      .flatMap(decodeFile)
+      .map(
+        _.map(line => {
+          val Array(id, filename) = line.split(';')
+          (id.toInt -> filename)
+        }).toMap
+      )
       .map(DocumentsIndex(_))
   }
 }
