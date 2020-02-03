@@ -16,7 +16,7 @@ object Server {
 
     BlazeServerBuilder[IO]
       .bindHttp(8080, "0.0.0.0")
-      .withIdleTimeout(2.minutes)
+      .withIdleTimeout(10.minutes)
       .withHttpApp(httpApp)
       .serve
   }.drain

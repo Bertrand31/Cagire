@@ -1,6 +1,6 @@
 package cagire
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 import cats.effect.{IO, Sync}
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
@@ -18,8 +18,9 @@ object Router {
 
       case req @ POST -> Root / "ingest" =>
         req.as[Array[String]].flatMap(paths => {
-          Try { cagire.ingestFiles(paths) } match {
+          cagire.ingestFiles(paths) match {
             case Failure(err) =>
+              println(err)
               InternalServerError(err.getMessage)
             case Success(newCagire) =>
               cagire = newCagire
