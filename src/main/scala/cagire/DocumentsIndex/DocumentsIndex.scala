@@ -11,9 +11,7 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
   import DocumentsIndex._
 
   def addDocument(documentId: Int, documentName: String): DocumentsIndex =
-    this.copy(
-      index=index + (documentId -> documentName)
-    )
+    this.copy(this.index + (documentId -> documentName))
 
   def get: Int => String = index
 
