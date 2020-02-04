@@ -1,6 +1,5 @@
 package cagire
 
-import java.nio.file.{Files, Paths, StandardCopyOption}
 import scala.annotation.tailrec
 import scala.util.Try
 import scala.util.hashing.MurmurHash3
@@ -12,11 +11,7 @@ object DocumentHandling {
 
   def storeDocument(path: String): Try[Int] =
     genFilename(path).map(filename => {
-      Files.copy(
-        Paths.get(path),
-        Paths.get(s"$StoragePath/$filename"),
-        StandardCopyOption.REPLACE_EXISTING,
-      )
+      FileUtils.copy(path, s"$StoragePath/$filename")
       filename
     })
 
