@@ -1,8 +1,6 @@
 package utils
 
-import scala.util.Try
-import java.io.FileWriter
-import java.io.IOException
+import java.io.{FileWriter, IOException}
 import java.nio.ByteBuffer
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption.{CREATE, WRITE}
