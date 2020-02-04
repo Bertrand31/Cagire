@@ -26,9 +26,7 @@ object FileUtils {
     val fw = new FileWriter(path)
     seq
       .sliding(chunkSize, chunkSize)
-      .foreach(chunk => {
-        fw.write { chunk.mkString("\n") + "\n" }
-    })
+      .foreach((fw.write(_: String)) compose (_.mkString("\n") + "\n"))
     fw.close
   }
 
