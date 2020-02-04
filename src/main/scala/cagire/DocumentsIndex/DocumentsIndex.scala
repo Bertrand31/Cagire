@@ -1,6 +1,5 @@
 package cagire
 
-import java.io.FileWriter
 import scala.util.Try
 import utils.FileUtils
 
@@ -13,21 +12,11 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
 
   def get: Int => String = index
 
-  private val ChunkSize = 10000
-
-  def commitToDisk(): Unit = {
-    val fw = new FileWriter(DocumentsIndexFilePath)
-    this.index
-      .sliding(ChunkSize, ChunkSize)
-      .foreach(chunk => {
-        fw.write {
-          chunk
-            .map({ case (id, filename) => id.toInt + ";" + filename })
-            .mkString("\n") + "\n"
-        }
-    })
-    fw.close
-  }
+  def commitToDisk(): Unit =
+    FileUtils.writeCSVProgressively(
+      DocumentsIndexFilePath,
+      this.index.view.map({ case (id, filename) => id.toInt + ";" + filename }),
+    )
 }
 
 object DocumentsIndex {

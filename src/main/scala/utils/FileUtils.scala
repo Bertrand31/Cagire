@@ -1,6 +1,7 @@
 package utils
 
 import scala.util.Try
+import java.io.FileWriter
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.file.Paths
@@ -20,6 +21,16 @@ object FileUtils {
         .fromFile(path)
         .getLines
     }
+
+  def writeCSVProgressively[A](path: String, seq: => Iterable[A], chunkSize: Int = 10000): Unit = {
+    val fw = new FileWriter(path)
+    seq
+      .sliding(chunkSize, chunkSize)
+      .foreach(chunk => {
+        fw.write { chunk.mkString("\n") + "\n" }
+    })
+    fw.close
+  }
 
   def writeAsync(file: String, bytes: Array[Byte]): Future[Unit] = {
     val p = Promise[Array[Byte]]()

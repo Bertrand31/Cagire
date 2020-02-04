@@ -1,6 +1,5 @@
 package cagire
 
-import java.io.FileWriter
 import scala.util.Try
 import io.circe.syntax.EncoderOps
 import io.circe.parser.decode
@@ -25,21 +24,11 @@ final case class InvertedIndex(index: Map[String, Map[Int, Set[Int]]] = Map()) {
   def searchWord(word: String): Map[Int, Set[Int]] =
     index.getOrElse(word.toLowerCase, Map())
 
-  private val ChunkSize = 10000
-
-  def commitToDisk(): Unit = {
-    val fw = new FileWriter(InvertedIndexFilePath)
-    this.index
-      .sliding(ChunkSize, ChunkSize)
-      .foreach(chunk => {
-        fw.write {
-          chunk
-            .map(line => s"${line._1};${line._2.asJson.noSpaces}")
-            .mkString("\n") + "\n"
-        }
-    })
-    fw.close
-  }
+  def commitToDisk(): Unit =
+    FileUtils.writeCSVProgressively(
+      InvertedIndexFilePath,
+      this.index.view.map(line => s"${line._1};${line._2.asJson.noSpaces}"),
+    )
 }
 
 object InvertedIndex {
