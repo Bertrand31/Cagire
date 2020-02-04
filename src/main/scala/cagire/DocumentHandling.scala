@@ -3,17 +3,18 @@ package cagire
 import scala.annotation.tailrec
 import scala.util.Try
 import scala.util.hashing.MurmurHash3
+import cats.implicits._
 import utils.FileUtils
 
 object DocumentHandling {
 
   private def genFilename: String => Try[Int] = FileUtils.readFile(_) map MurmurHash3.orderedHash
 
-  def storeDocument(path: String): Try[Int] =
-    genFilename(path).map(filename => {
-      FileUtils.copy(path, s"$StoragePath/$filename")
-      filename
-    })
+  def storeDocument(path: String): Try[Int] = {
+    val filename = genFilename(path)
+    filename foreach ((StoragePath + _) >>> (FileUtils.copy(path, _)))
+    filename
+  }
 
   private def loadDocument(documentId: Int): Try[Iterator[String]] =
     FileUtils.readFile(s"$StoragePath/${documentId.toString}")

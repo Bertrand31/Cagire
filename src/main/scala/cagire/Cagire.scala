@@ -39,7 +39,9 @@ final case class Cagire(
   def ingestFile: String => Try[Cagire] = ingestFileHandler(_).map(_.commitToDisk)
 
   def ingestFiles: Iterable[String] => Try[Cagire] =
-    _.foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path)).map(_.commitToDisk)
+    _
+      .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
+      .map(_.commitToDisk)
 
   def searchWord: String => Map[Int, Set[Int]] = invertedIndex.searchWord
 
