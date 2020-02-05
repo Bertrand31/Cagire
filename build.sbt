@@ -32,11 +32,11 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser" % CirceVersion,
 )
 
-addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.10.3")
-
-addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.0")
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0")
 
 scalacOptions ++= Seq(
+  "-Ypartial-unification",
   "-deprecation", // Warn about deprecated features
   "-encoding", "UTF-8", // Specify character encoding used by source files
   "-feature", // Emit warning and location for usages of features that should be imported explicitly

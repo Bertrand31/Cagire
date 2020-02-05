@@ -38,18 +38,20 @@ object InvertedIndex {
 
   private def InvertedIndexFilePath = StoragePath |+| "inverted_index.csv"
 
+  private def decodeIndexLine: Iterator[String] => Try[Map[String, Map[Int, Set[Int]]]] =
+    _
+      .toList
+      .map(line => {
+        val Array(word, matchesStr) = line.split(';')
+        decode[Map[Int, Set[Int]]](matchesStr).map((word -> _))
+      })
+      .sequence
+      .map(_.toMap)
+      .toTry
+
   def hydrate(): Try[InvertedIndex] =
     FileUtils
       .readFile(InvertedIndexFilePath)
-      .flatMap(lines =>
-        Try {
-          lines.map(line => {
-            val Array(word, matchesStr) = line.split(';')
-            val matches = decode[Map[Int, Set[Int]]](matchesStr)
-              .getOrElse(throw new Error(s"Failed to decode the inverted index file on word $word"))
-            (word -> matches)
-          }).toMap
-        }
-      )
+      .flatMap(decodeIndexLine)
       .map(InvertedIndex(_))
 }
