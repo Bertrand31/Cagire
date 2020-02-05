@@ -27,13 +27,15 @@ final case class InvertedIndex(index: Map[String, Map[Int, Set[Int]]] = Map()) {
   def commitToDisk(): Unit =
     FileUtils.writeCSVProgressively(
       InvertedIndexFilePath,
-      this.index.view.map(line => s"${line._1};${line._2.asJson.noSpaces}"),
+      this.index
+        .view
+        .map({ case (word, matches) => s"$word;${matches.asJson.noSpaces}" })
     )
 }
 
 object InvertedIndex {
 
-  private def InvertedIndexFilePath = StoragePath + "/inverted_index.csv"
+  private def InvertedIndexFilePath = StoragePath + "inverted_index.csv"
 
   def hydrate(): Try[InvertedIndex] =
     FileUtils

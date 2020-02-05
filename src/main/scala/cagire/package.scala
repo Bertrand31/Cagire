@@ -1,5 +1,5 @@
 package object cagire {
 
-  val StoragePath = "src/main/resources"
+  val StoragePath = "src/main/resources/"
 }
 

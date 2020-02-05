@@ -2,8 +2,8 @@ package cagire
 
 import scala.util.Try
 import cats.implicits._
-import io.circe.syntax._
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),

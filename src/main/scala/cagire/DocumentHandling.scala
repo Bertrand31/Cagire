@@ -17,7 +17,7 @@ object DocumentHandling {
   }
 
   private def loadDocument(documentId: Int): Try[Iterator[String]] =
-    FileUtils.readFile(s"$StoragePath/${documentId.toString}")
+    FileUtils.readFile(s"$StoragePath${documentId.toString}")
 
   def loadDocumentWithLinesNumbers(documentId: Int): Try[Stream[(Int, String)]] =
     loadDocument(documentId) map (Stream.from(1) zip _.toIterable)
