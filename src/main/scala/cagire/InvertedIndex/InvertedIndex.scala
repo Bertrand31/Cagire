@@ -46,7 +46,7 @@ object InvertedIndex {
           lines.map(line => {
             val Array(word, matchesStr) = line.split(';')
             val matches = decode[Map[Int, Set[Int]]](matchesStr)
-              .getOrElse(throw new Error("Failed to decode the inverted index file"))
+              .getOrElse(throw new Error(s"Failed to decode the inverted index file on word $word"))
             (word -> matches)
           }).toMap
         }
