@@ -11,3 +11,7 @@ directly, and the search of a partial word (used to provide results as the user 
 
 The search of a partial word uses the trie to find out all the words stored that start with that
 prefix. Once we have that list of words, we look up all of them in the inverted index.
+
+On my laptop (with an _Intel Core i7-1065G7 CPU @ 1.30GHz CPU_), it'll search through 31 million words
+and return all the partial matches in 30ms.
+It will search through the same amount of data and return exact word matches in 10ms.
