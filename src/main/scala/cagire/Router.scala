@@ -20,7 +20,7 @@ object Router {
         req.as[Array[String]].flatMap(paths => {
           cagire.ingestFiles(paths) match {
             case Failure(err) =>
-              println(err)
+              err.printStackTrace
               InternalServerError(err.getMessage)
             case Success(newCagire) =>
               cagire = newCagire
