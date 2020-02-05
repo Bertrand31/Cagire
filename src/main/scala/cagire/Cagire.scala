@@ -60,9 +60,9 @@ final case class Cagire(
         .map((filename -> _))
     }).asJson
 
-  def searchWordAndFormat: String => Json = formatResults compose searchWord
+  def searchWordAndFormat: String => Json = searchWord >>> formatResults
 
-  def searchPrefixAndShow: String => Json = formatResults compose searchPrefix
+  def searchPrefixAndShow: String => Json = searchPrefix >>> formatResults
 }
 
 object Cagire {
