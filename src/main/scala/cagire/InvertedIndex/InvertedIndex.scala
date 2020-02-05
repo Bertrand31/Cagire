@@ -1,6 +1,7 @@
 package cagire
 
 import scala.util.Try
+import cats.implicits._
 import io.circe.syntax.EncoderOps
 import io.circe.parser.decode
 import utils.FileUtils
@@ -35,16 +36,20 @@ final case class InvertedIndex(index: Map[String, Map[Int, Set[Int]]] = Map()) {
 
 object InvertedIndex {
 
-  private def InvertedIndexFilePath = StoragePath + "inverted_index.csv"
+  private def InvertedIndexFilePath = StoragePath |+| "inverted_index.csv"
 
   def hydrate(): Try[InvertedIndex] =
     FileUtils
       .readFile(InvertedIndexFilePath)
-      .map(
-        _.map(line => {
-          val Array(key, value) = line.split(';')
-          (key -> decode[Map[Int, Set[Int]]](value).right.get)
-        }).toMap
+      .flatMap(lines =>
+        Try {
+          lines.map(line => {
+            val Array(word, matchesStr) = line.split(';')
+            val matches = decode[Map[Int, Set[Int]]](matchesStr)
+              .getOrElse(throw new Error("Failed to decode the inverted index file"))
+            (word -> matches)
+          }).toMap
+        }
       )
       .map(InvertedIndex(_))
 }

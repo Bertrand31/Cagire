@@ -1,6 +1,7 @@
 package cagire
 
 import scala.util.Try
+import cats.implicits._
 import utils.FileUtils
 
 final case class DocumentsIndex(index: Map[Int, String] = Map()) {
@@ -21,7 +22,7 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
 
 object DocumentsIndex {
 
-  private val DocumentsIndexFilePath = StoragePath + "documents_index.csv"
+  private val DocumentsIndexFilePath = StoragePath |+| "documents_index.csv"
 
   def hydrate(): Try[DocumentsIndex] = {
     FileUtils
