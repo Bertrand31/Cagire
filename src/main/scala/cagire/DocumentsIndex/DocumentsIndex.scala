@@ -24,7 +24,7 @@ object DocumentsIndex {
 
   private val DocumentsIndexFilePath = StoragePath |+| "documents_index.csv"
 
-  def hydrate(): Try[DocumentsIndex] = {
+  def hydrate(): Try[DocumentsIndex] =
     FileUtils
       .readFile(DocumentsIndexFilePath)
       .map(
@@ -34,5 +34,4 @@ object DocumentsIndex {
         }).toMap
       )
       .map(DocumentsIndex(_))
-  }
 }

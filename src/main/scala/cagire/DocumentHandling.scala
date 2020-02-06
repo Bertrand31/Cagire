@@ -17,17 +17,17 @@ object DocumentHandling {
   }
 
   private def loadDocument(documentId: Int): Try[Iterator[String]] =
-    FileUtils.readFile(s"$StoragePath${documentId.toString}")
+    FileUtils.readFile(StoragePath |+| documentId.toString)
 
   def loadDocumentWithLinesNumbers(documentId: Int): Try[Stream[(Int, String)]] =
-    loadDocument(documentId) map (Stream.from(1) zip _.toIterable)
+    loadDocument(documentId) map (Stream.from(1) zip _.toStream)
 
   /** Loads the required lines from a lazy iterator without holding more than one line
     * in memory at any given point (except from the ones being accumulated).
     */
   @tailrec
   private def loadLines(
-    document: Iterator[String], targets: Set[Int], current: Int, soFar: Map[Int, String]
+    document: Iterator[String], targets: Set[Int], current: Int, soFar: Map[Int, String],
   ): Map[Int, String] =
     if (targets.isEmpty) soFar
     else {

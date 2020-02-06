@@ -40,14 +40,14 @@ object InvertedIndex {
 
   private def decodeIndexLine: Iterator[String] => Try[Map[String, Map[Int, Set[Int]]]] =
     _
-      .toList
       .map(line => {
         val Array(word, matchesStr) = line.split(';')
         decode[Map[Int, Set[Int]]](matchesStr).map((word -> _))
       })
-      .sequence
-      .map(_.toMap)
+      .toList
+      .sequence // From List[Either[A, B]] to Either[A, List[B]]
       .toTry
+      .map(_.toMap)
 
   def hydrate(): Try[InvertedIndex] =
     FileUtils

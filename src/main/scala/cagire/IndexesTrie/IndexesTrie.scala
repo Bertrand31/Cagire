@@ -19,7 +19,7 @@ final case class IndexesTrie(
       .toList
 
   private def getStringFromIndexes: Seq[Char] => String =
-    _.mkString("")
+    _ mkString ""
 
   def +(word: String): IndexesTrie = {
     def insertIndexes(indexes: Seq[Char], trie: IndexesTrie): IndexesTrie =

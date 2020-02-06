@@ -9,7 +9,6 @@ scalaVersion := "2.12.10"
 val CirceVersion = "0.12.3"
 val Http4sVersion = "0.20.17"
 val Specs2Version = "4.1.0"
-val LogbackVersion = "1.2.3"
 
 libraryDependencies ++= Seq(
   // Web server
@@ -22,7 +21,6 @@ libraryDependencies ++= Seq(
   // Logging
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
   // Tests
-  "org.specs2"    %% "specs2-core" % Specs2Version % "test",
   "org.scalatest" %% "scalatest" % "3.1.0",
   // Misc
   "org.typelevel" %% "cats-core" % "2.1.0",
