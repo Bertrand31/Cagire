@@ -4,6 +4,8 @@ import scala.util.Try
 import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import org.roaringbitmap.RoaringBitmap
+import utils.RoaringBitmapMonoid.roaringBitmapMonoid
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
@@ -43,19 +45,19 @@ final case class Cagire(
       .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
       .map(_.commitToDisk)
 
-  def searchWord: String => Map[Int, Set[Int]] = invertedIndex.searchWord
+  def searchWord: String => Map[Int, RoaringBitmap] = invertedIndex.searchWord
 
-  def searchPrefix: String => Map[Int, Set[Int]] =
+  def searchPrefix: String => Map[Int, RoaringBitmap] =
     indexesTrie
       .keysWithPrefix(_)
       .map(searchWord)
       .foldMap(identity)
 
-  private def formatResults: Map[Int, Set[Int]] => Json =
+  private def formatResults: Map[Int, RoaringBitmap] => Json =
     _.flatMap(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.get(documentId)
-      DocumentHandling.loadLinesFromDocument(documentId, linesMatches)
+      DocumentHandling.loadLinesFromDocument(documentId, linesMatches.toArray.toSet)
         .toOption
         .map((filename -> _))
     }).asJson

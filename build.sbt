@@ -23,6 +23,7 @@ libraryDependencies ++= Seq(
   // Tests
   "org.scalatest" %% "scalatest" % "3.1.0",
   // Misc
+  "org.roaringbitmap" % "RoaringBitmap" % "0.8.9",
   "org.typelevel" %% "cats-core" % "2.1.0",
   // JSON
   "io.circe" %% "circe-core" % CirceVersion,
