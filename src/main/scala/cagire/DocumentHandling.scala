@@ -27,21 +27,23 @@ object DocumentHandling {
     */
   @tailrec
   private def loadLines(
-    document: Iterator[String], targets: Set[Int], current: Int, soFar: Map[Int, String],
-  ): Map[Int, String] =
+    targets: Set[Int],
+    current: Int = 1,
+    soFar: Map[Int, String] = Map(),
+  )(document: Iterator[String]): Map[Int, String] =
     if (targets.isEmpty) soFar
     else {
       val head = document.next
       if (targets contains current) {
         val newSoFar = soFar + (current -> head)
         if (!document.hasNext) newSoFar
-        else loadLines(document, targets - current, current + 1, newSoFar)
+        else loadLines(targets - current, current + 1, newSoFar)(document)
       } else {
         if (!document.hasNext) soFar
-        else loadLines(document, targets, current + 1, soFar)
+        else loadLines(targets, current + 1, soFar)(document)
       }
     }
 
     def loadLinesFromDocument(documentId: Int, targets: Set[Int]): Try[Map[Int, String]] =
-      loadDocument(documentId) map (loadLines(_, targets, 1, Map()))
+      loadDocument(documentId) map loadLines(targets)
 }
