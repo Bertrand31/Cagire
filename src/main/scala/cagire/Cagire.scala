@@ -64,7 +64,7 @@ final case class Cagire(
 
   def searchWordAndFormat: String => Json = searchWord >>> formatResults
 
-  def searchPrefixAndShow: String => Json = searchPrefix >>> formatResults
+  def searchPrefixAndFormat: String => Json = searchPrefix >>> formatResults
 }
 
 object Cagire {

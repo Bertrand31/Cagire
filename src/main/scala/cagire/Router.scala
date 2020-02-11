@@ -28,11 +28,11 @@ object Router {
           }
         })
 
-      case GET -> Root / "search-prefix" / prefix =>
-        Ok(cagire.searchPrefixAndShow(prefix))
+      case GET -> Root / "search" / prefix =>
+        Ok(cagire searchPrefixAndFormat prefix)
 
       case GET -> Root / "search" / word =>
-        Ok(cagire.searchWordAndFormat(word))
+        Ok(cagire searchWordAndFormat word)
     }
   }
 }
