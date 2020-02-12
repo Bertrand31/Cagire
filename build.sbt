@@ -4,10 +4,10 @@ version := "1"
 
 maintainer := "bertrandjun@gmail.com"
 
-scalaVersion := "2.12.10"
+scalaVersion := "2.13.1"
 
-val CirceVersion = "0.12.3"
-val Http4sVersion = "0.20.17"
+val CirceVersion = "0.13.0"
+val Http4sVersion = "0.21.0"
 val Specs2Version = "4.1.0"
 
 libraryDependencies ++= Seq(
@@ -18,8 +18,6 @@ libraryDependencies ++= Seq(
   "org.http4s"    %% "http4s-dsl" % Http4sVersion,
   // JSON encoding and decoding
   "io.circe"      %% "circe-generic" % CirceVersion,
-  // Logging
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
   // Tests
   "org.scalatest" %% "scalatest" % "3.1.0",
   // Misc
@@ -35,7 +33,6 @@ addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0")
 
 scalacOptions ++= Seq(
-  "-Ypartial-unification",
   "-deprecation", // Warn about deprecated features
   "-encoding", "UTF-8", // Specify character encoding used by source files
   "-feature", // Emit warning and location for usages of features that should be imported explicitly

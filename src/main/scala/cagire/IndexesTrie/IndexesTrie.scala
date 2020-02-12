@@ -72,7 +72,7 @@ final case class IndexesTrie(
     getSubTrie(getIndexesFromString(word), this)
       .fold(Map[Int, RoaringBitmap]())(_.matches)
 
-  def feedWord(wordAndMatches: (String, Map[Int, RoaringBitmap])): IndexesTrie = {
+  def insertTuple(wordAndMatches: (String, Map[Int, RoaringBitmap])): IndexesTrie = {
     val (word, matches) = wordAndMatches
     val path = getIndexesFromString(word)
 
@@ -96,12 +96,12 @@ final case class IndexesTrie(
     insertMatches(path, this)
   }
 
-  private def getTuples(prefix: String): Stream[(String, Map[Int, RoaringBitmap])] = {
-    val subTuples = this.children.toStream.flatMap({
+  private def getTuples(prefix: String): Iterator[(String, Map[Int, RoaringBitmap])] = {
+    val subTuples = this.children.view.to(Iterator).flatMap({
       case (char, subTrie) => subTrie.getTuples(prefix :+ char)
     })
     if (this.matches.isEmpty) subTuples
-    else Stream((prefix, this.matches)) ++ subTuples
+    else Iterator((prefix, this.matches)) ++ subTuples
   }
 
   def commitToDisk(): Unit =
@@ -109,7 +109,9 @@ final case class IndexesTrie(
       InvertedIndexFilePath,
       this.children.view
         .flatMap({ case (char, subTrie) => subTrie.getTuples(char.toString) })
-        .map({ case (word, matches) => s"$word;${matches.mapValues(_.toArray).asJson.noSpaces}" }),
+        .map({ case (word, matches) =>
+          s"$word;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
+        }),
     )
 }
 
@@ -117,21 +119,18 @@ object IndexesTrie {
 
   private def InvertedIndexFilePath = StoragePath |+| "inverted_index.csv"
 
-  private def decodeIndexLine: Iterator[String] => Try[List[(String, Map[Int, RoaringBitmap])]] =
+  private def decodeIndexLine: Iterator[String] => Iterator[(String, Map[Int, RoaringBitmap])] =
     _
       .map(line => {
         val Array(word, matchesStr) = line.split(';')
-        decode[Map[Int, Array[Int]]](matchesStr)
-          .map((word -> _.mapValues(RoaringBitmap.bitmapOf(_:_*))))
+        val matches = decode[Map[Int, Array[Int]]](matchesStr).getOrElse(Map())
+        (word -> matches.view.mapValues(RoaringBitmap.bitmapOf(_:_*)).toMap)
       })
-      .toList
-      .sequence // From List[Either[A, B]] to Either[A, List[B]]
-      .toTry
 
 
   def hydrate(): Try[IndexesTrie] =
     FileUtils
       .readFile(InvertedIndexFilePath)
-      .flatMap(decodeIndexLine)
-      .map(_.foldLeft(IndexesTrie())(_ feedWord _))
+      .map(decodeIndexLine)
+      .map(_.foldLeft(IndexesTrie())(_ insertTuple _))
 }

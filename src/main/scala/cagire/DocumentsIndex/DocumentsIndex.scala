@@ -16,7 +16,7 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
   def commitToDisk(): Unit =
     FileUtils.writeCSVProgressively(
       DocumentsIndexFilePath,
-      this.index.view.map({ case (id, filename) => id.toInt + ";" + filename }),
+      this.index.view.map({ case (id, filename) => id.toString |+| ";" |+| filename }),
     )
 }
 

@@ -27,8 +27,8 @@ object DocumentHandling {
   private def loadDocument(documentId: Int): Try[Iterator[String]] =
     FileUtils.readFile(StoragePath |+| documentId.toString)
 
-  def loadDocumentWithLinesNumbers(documentId: Int): Try[Stream[(Int, String)]] =
-    loadDocument(documentId) map (Stream.from(1) zip _.toStream)
+  def loadDocumentWithLinesNumbers(documentId: Int): Try[Iterator[(Int, String)]] =
+    loadDocument(documentId) map (Iterator.from(1) zip _.to(Iterator))
 
   /** Loads the required lines from a lazy iterator without holding more than one line
     * in memory at any given point (except from the ones being accumulated).

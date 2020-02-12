@@ -5,6 +5,7 @@ import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.roaringbitmap.RoaringBitmap
+import utils.TryUtils._
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
@@ -18,10 +19,9 @@ final case class Cagire(
     cagire.copy(indexesTrie=newTrie)
   }
 
-  private def commitToDisk(): Cagire = {
+  private def commitToDisk(): Unit = {
     this.documentsIndex.commitToDisk()
     this.indexesTrie.commitToDisk()
-    this
   }
 
   private def ingestFileHandler(path: String): Try[Cagire] =
@@ -35,12 +35,12 @@ final case class Cagire(
         .copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
     }
 
-  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).map(_.commitToDisk)
+  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.commitToDisk)
 
   def ingestFiles: Iterable[String] => Try[Cagire] =
     _
       .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
-      .map(_.commitToDisk)
+      .tap(_.commitToDisk)
 
   def searchWord: String => Map[Int, RoaringBitmap] = indexesTrie.matchesForWord
 
@@ -50,7 +50,7 @@ final case class Cagire(
     _.flatMap(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.get(documentId)
-      DocumentHandling.loadLinesFromDocument(documentId, linesMatches.toArray.toSet)
+      DocumentHandling.loadLinesFromDocument(documentId, linesMatches.toArray.toIndexedSeq)
         .toOption
         .map((filename -> _))
     }).asJson
