@@ -3,6 +3,7 @@ package cagire
 import scala.annotation.tailrec
 import scala.util.Try
 import scala.util.hashing.MurmurHash3
+import scala.collection.mutable.PriorityQueue
 import cats.implicits._
 import utils.FileUtils
 
@@ -27,23 +28,20 @@ object DocumentHandling {
     */
   @tailrec
   private def loadLines(
-    targets: Set[Int],
+    targets: PriorityQueue[Int],
     current: Int = 1,
     soFar: Map[Int, String] = Map(),
   )(document: Iterator[String]): Map[Int, String] =
     if (targets.isEmpty) soFar
     else {
-      val head = document.next
-      if (targets contains current) {
-        val newSoFar = soFar + (current -> head)
-        if (!document.hasNext) newSoFar
-        else loadLines(targets - current, current + 1, newSoFar)(document)
-      } else {
-        if (!document.hasNext) soFar
-        else loadLines(targets, current + 1, soFar)(document)
-      }
+      val currentTarget = targets.dequeue
+      document.drop(currentTarget - current)
+      val targetLine = (currentTarget, document.next)
+      loadLines(targets, currentTarget + 1, soFar + targetLine)(document)
     }
 
-    def loadLinesFromDocument(documentId: Int, targets: Set[Int]): Try[Map[Int, String]] =
-      loadDocument(documentId) map loadLines(targets)
+    def loadLinesFromDocument(documentId: Int, targets: Seq[Int]): Try[Map[Int, String]] = {
+      val targetsMinHeap = PriorityQueue(targets:_*)(Ordering[Int].reverse)
+      loadDocument(documentId) map loadLines(targetsMinHeap)
+    }
 }
