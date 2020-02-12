@@ -9,7 +9,14 @@ import utils.FileUtils
 
 object DocumentHandling {
 
-  private def genFilename: String => Try[Int] = FileUtils.readFile(_) map MurmurHash3.orderedHash
+  /** We generate a filename from hashing the first 10 lines of the file.
+    * The number of 10 is arbitrary, but it allows us to be reasonably safe from collisions
+    * without having to load the whole file and waste too much time on filename generation.
+    */
+  private def genFilename: String => Try[Int] =
+    FileUtils.readFile(_)
+      .map(_ take 10)
+      .map(MurmurHash3.orderedHash)
 
   def storeDocument(path: String): Try[Int] = {
     val filename = genFilename(path)
