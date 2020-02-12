@@ -1,5 +1,13 @@
 package cagire
 
+import scala.util.Try
+import cats.implicits._
+import org.roaringbitmap.RoaringBitmap
+import io.circe.syntax.EncoderOps
+import io.circe.parser.decode
+import utils.RoaringBitmapMonoid.roaringBitmapMonoid
+import utils.FileUtils
+
 /* This implementation of a IndexesTrie uses Maps instead of Arrays to store the child nodes.
  * This approach is slower to explore, but since we want this IndexesTrie to support
  * all 16-bits characters of a Scala string, it was either Maps or Arrays of
@@ -8,8 +16,10 @@ package cagire
 
 final case class IndexesTrie(
   private val children: Map[Char, IndexesTrie] = Map(),
-  private val isFinal: Boolean = false,
+  private val matches: Map[Int, RoaringBitmap] = Map(),
 ) {
+
+  import IndexesTrie.InvertedIndexFilePath
 
   private def getIndexesFromString: String => Seq[Char] =
     _
@@ -18,62 +28,110 @@ final case class IndexesTrie(
       .map(_.charValue) // 'a' is 97, 'b' is 98, etc
       .toList
 
-  private def getStringFromIndexes: Seq[Char] => String =
-    _ mkString ""
+  def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrie =
+    words.foldLeft(this)((acc, word) => {
+      def insertIndexes(indexes: Seq[Char], trie: IndexesTrie): IndexesTrie =
+        indexes match {
+          case head +: Nil => {
+            val child = trie.children.getOrElse(head, IndexesTrie())
+            val currentMatches = child.matches.get(docId).getOrElse(new RoaringBitmap)
+            currentMatches add lineNumber
+            val newChildMatches = child.matches + (docId -> currentMatches)
+            val newChild = child.copy(matches=newChildMatches)
+            val newChildren = trie.children + (head -> newChild)
+            trie.copy(children=newChildren)
+          }
+          case head +: tail => {
+            val newSubTrie = trie.children.get(head) match {
+              case Some(subTrie) => insertIndexes(tail, subTrie)
+              case None => insertIndexes(tail, IndexesTrie())
+            }
+            trie.copy(trie.children + (head -> newSubTrie))
+          }
+        }
 
-  def +(word: String): IndexesTrie = {
-    def insertIndexes(indexes: Seq[Char], trie: IndexesTrie): IndexesTrie =
+      insertIndexes(getIndexesFromString(word), acc)
+    })
+
+  private def getAllMatches: Map[Int, RoaringBitmap] =
+    this.children
+      .map(_._2.getAllMatches)
+      .foldLeft(this.matches)(_ |+| _)
+
+  private def getSubTrie(path: Seq[Char], trie: IndexesTrie): Option[IndexesTrie] =
+    path match {
+      case head +: Nil => trie.children.get(head)
+      case head +: tail => trie.children.get(head).flatMap(getSubTrie(tail, _))
+    }
+
+  def matchesWithPrefix(prefix: String): Map[Int, RoaringBitmap] =
+    getSubTrie(getIndexesFromString(prefix), this)
+      .fold(Map[Int, RoaringBitmap]())(_.getAllMatches)
+
+  def matchesForWord(word: String): Map[Int, RoaringBitmap] =
+    getSubTrie(getIndexesFromString(word), this)
+      .fold(Map[Int, RoaringBitmap]())(_.matches)
+
+  def feedWord(wordAndMatches: (String, Map[Int, RoaringBitmap])): IndexesTrie = {
+    val (word, matches) = wordAndMatches
+    val path = getIndexesFromString(word)
+
+    def insertMatches(indexes: Seq[Char], trie: IndexesTrie): IndexesTrie =
       indexes match {
         case head +: Nil => {
-          val newChild = trie.children.getOrElse(head, IndexesTrie()).copy(isFinal=true)
+          val child = trie.children.getOrElse(head, IndexesTrie())
+          val newChild = child.copy(matches=matches)
           val newChildren = trie.children + (head -> newChild)
           trie.copy(children=newChildren)
         }
         case head +: tail => {
           val newSubTrie = trie.children.get(head) match {
-            case Some(subTrie) => insertIndexes(tail, subTrie)
-            case None => insertIndexes(tail, IndexesTrie())
+            case Some(subTrie) => insertMatches(tail, subTrie)
+            case None => insertMatches(tail, IndexesTrie())
           }
           trie.copy(trie.children + (head -> newSubTrie))
         }
       }
 
-    insertIndexes(getIndexesFromString(word), this)
+    insertMatches(path, this)
   }
 
-  def ++(words: Iterable[String]): IndexesTrie = words.foldLeft(this)(_ + _)
-
-  def keys: List[String] = {
-    def descendCharByChar(accumulator: Vector[Char], trie: IndexesTrie): List[Vector[Char]] =
-      trie.children.map({
-        case (char, subTrie) if (subTrie.isFinal) => {
-          val currentWord = accumulator :+ char
-          currentWord +: descendCharByChar(currentWord, subTrie)
-        }
-        case (char, subTrie) => descendCharByChar(accumulator :+ char, subTrie)
-      }).flatten.toList
-
-    descendCharByChar(Vector(), this).map(getStringFromIndexes)
+  private def getTuples(prefix: String): Stream[(String, Map[Int, RoaringBitmap])] = {
+    val subTuples = this.children.toStream.flatMap({
+      case (char, subTrie) => subTrie.getTuples(prefix :+ char)
+    })
+    if (this.matches.isEmpty) subTuples
+    else Stream((prefix, this.matches)) ++ subTuples
   }
 
-  def keysWithPrefix(prefix: String): List[String] = {
-
-    def descendWithPrefix(indexes: Seq[Char], trie: IndexesTrie): Option[IndexesTrie] =
-      indexes match {
-        case head +: Nil => trie.children.get(head)
-        case head +: tail => trie.children.get(head).flatMap(descendWithPrefix(tail, _))
-      }
-
-    val subTrie = descendWithPrefix(getIndexesFromString(prefix), this)
-    subTrie match {
-      case None => List()
-      case Some(subTrie) if (subTrie.isFinal) => prefix +: subTrie.keys.map(prefix + _)
-      case Some(subTrie) => subTrie.keys.map(prefix + _)
-    }
-  }
+  def commitToDisk(): Unit =
+    FileUtils.writeCSVProgressively(
+      InvertedIndexFilePath,
+      this.children.view
+        .flatMap({ case (char, subTrie) => subTrie.getTuples(char.toString) })
+        .map({ case (word, matches) => s"$word;${matches.mapValues(_.toArray).asJson.noSpaces}" }),
+    )
 }
 
 object IndexesTrie {
 
-  def apply(initialItems: String*): IndexesTrie = new IndexesTrie ++ initialItems
+  private def InvertedIndexFilePath = StoragePath |+| "inverted_index.csv"
+
+  private def decodeIndexLine: Iterator[String] => Try[List[(String, Map[Int, RoaringBitmap])]] =
+    _
+      .map(line => {
+        val Array(word, matchesStr) = line.split(';')
+        decode[Map[Int, Array[Int]]](matchesStr)
+          .map((word -> _.mapValues(RoaringBitmap.bitmapOf(_:_*))))
+      })
+      .toList
+      .sequence // From List[Either[A, B]] to Either[A, List[B]]
+      .toTry
+
+
+  def hydrate(): Try[IndexesTrie] =
+    FileUtils
+      .readFile(InvertedIndexFilePath)
+      .flatMap(decodeIndexLine)
+      .map(_.foldLeft(IndexesTrie())(_ feedWord _))
 }

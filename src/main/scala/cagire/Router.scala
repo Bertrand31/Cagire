@@ -28,7 +28,7 @@ object Router {
           }
         })
 
-      case GET -> Root / "search" / prefix =>
+      case GET -> Root / "search-prefix" / prefix =>
         Ok(cagire searchPrefixAndFormat prefix)
 
       case GET -> Root / "search" / word =>

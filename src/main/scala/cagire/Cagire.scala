@@ -5,25 +5,22 @@ import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.roaringbitmap.RoaringBitmap
-import utils.RoaringBitmapMonoid.roaringBitmapMonoid
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
-  private val invertedIndex: InvertedIndex = InvertedIndex(),
   private val indexesTrie: IndexesTrie = IndexesTrie(),
 ) {
 
   private def ingestLine(docId: Int)(cagire: Cagire, line: (Int, String)): Cagire = {
     val (lineNumber, lineString) = line
     val words = LineSanitizing.lineToWords(lineString)
-    val newTrie = cagire.indexesTrie ++ words
-    val newIndex = cagire.invertedIndex.addLine(docId, lineNumber, words)
-    cagire.copy(invertedIndex=newIndex, indexesTrie=newTrie)
+    val newTrie = cagire.indexesTrie.addLine(docId, lineNumber, words)
+    cagire.copy(indexesTrie=newTrie)
   }
 
   private def commitToDisk(): Cagire = {
     this.documentsIndex.commitToDisk()
-    this.invertedIndex.commitToDisk()
+    this.indexesTrie.commitToDisk()
     this
   }
 
@@ -45,13 +42,9 @@ final case class Cagire(
       .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
       .map(_.commitToDisk)
 
-  def searchWord: String => Map[Int, RoaringBitmap] = invertedIndex.searchWord
+  def searchWord: String => Map[Int, RoaringBitmap] = indexesTrie.matchesForWord
 
-  def searchPrefix: String => Map[Int, RoaringBitmap] =
-    indexesTrie
-      .keysWithPrefix(_)
-      .map(searchWord)
-      .foldMap(identity)
+  def searchPrefix: String => Map[Int, RoaringBitmap] = indexesTrie.matchesWithPrefix
 
   private def formatResults: Map[Int, RoaringBitmap] => Json =
     _.flatMap(matchTpl => {
@@ -72,8 +65,7 @@ object Cagire {
   def bootstrap(): Cagire = {
     for {
       documentsIndex <- DocumentsIndex.hydrate
-      invertedIndex <- InvertedIndex.hydrate
-      indexesTrie = IndexesTrie(invertedIndex.keys:_*)
-    } yield (Cagire(documentsIndex, invertedIndex, indexesTrie))
+      indexesTrie <- IndexesTrie.hydrate
+    } yield (Cagire(documentsIndex, indexesTrie))
   }.getOrElse(Cagire())
 }
