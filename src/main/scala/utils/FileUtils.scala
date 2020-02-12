@@ -20,7 +20,7 @@ object FileUtils {
         .getLines
     }
 
-  def writeCSVProgressively(path: String, seq: => Iterable[_], chunkSize: Int = 10000): Unit = {
+  def writeCSVProgressively(path: String, seq: => Iterator[_], chunkSize: Int = 10000): Unit = {
     val fw = new FileWriter(path)
     seq
       .sliding(chunkSize, chunkSize)

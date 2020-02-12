@@ -11,12 +11,15 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
   def addDocument(documentId: Int, documentName: String): DocumentsIndex =
     this.copy(this.index + (documentId -> documentName))
 
-  def get: Int => String = index
+  def getFilename: Int => String = index
 
   def commitToDisk(): Unit =
     FileUtils.writeCSVProgressively(
       DocumentsIndexFilePath,
-      this.index.view.map({ case (id, filename) => id.toString |+| ";" |+| filename }),
+      this.index
+        .view
+        .to(Iterator)
+        .map({ case (id, filename) => s"${id.toString};$filename" }),
     )
 }
 

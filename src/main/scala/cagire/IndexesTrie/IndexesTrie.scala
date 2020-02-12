@@ -107,7 +107,9 @@ final case class IndexesTrie(
   def commitToDisk(): Unit =
     FileUtils.writeCSVProgressively(
       InvertedIndexFilePath,
-      this.children.view
+      this.children
+        .view
+        .to(Iterator)
         .flatMap({ case (char, subTrie) => subTrie.getTuples(char.toString) })
         .map({ case (word, matches) =>
           s"$word;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
@@ -123,8 +125,13 @@ object IndexesTrie {
     _
       .map(line => {
         val Array(word, matchesStr) = line.split(';')
-        val matches = decode[Map[Int, Array[Int]]](matchesStr).getOrElse(Map())
-        (word -> matches.view.mapValues(RoaringBitmap.bitmapOf(_:_*)).toMap)
+        val matches =
+          decode[Map[Int, Array[Int]]](matchesStr)
+            .getOrElse(Map())
+            .view
+            .mapValues(RoaringBitmap.bitmapOf(_:_*))
+            .toMap
+        (word -> matches)
       })
 
 
