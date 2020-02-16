@@ -48,4 +48,13 @@ class IndexesTrieSpec extends AnyFlatSpec {
     val matches = trieWithTwoLines.matchesWithPrefix("se")
     assert(matches == Map((123 -> RoaringBitmap.bitmapOf(1, 2))))
   }
+
+  behavior of "the insertTuple helper method"
+
+  it should "insert matches 'as is'" in {
+
+    val matches = Map((123 -> RoaringBitmap.bitmapOf(1)))
+    val trieWithTuple = newTrie.insertTuple(("foo", matches))
+    assert(trieWithTuple.matchesForWord("foo") == Map((123 -> RoaringBitmap.bitmapOf(1))))
+  }
 }
