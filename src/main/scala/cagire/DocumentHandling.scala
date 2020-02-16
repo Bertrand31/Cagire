@@ -32,9 +32,10 @@ object DocumentHandling {
 
   /** Loads the required lines from a lazy iterator without holding more than one line
     * in memory at any given point (except from the ones being accumulated).
+    * This method is made public for testing purposes.
     */
   @tailrec
-  private def loadLines(
+  def loadLines(
     targets: PriorityQueue[Int],
     current: Int = 1,
     soFar: Map[Int, String] = Map(),
