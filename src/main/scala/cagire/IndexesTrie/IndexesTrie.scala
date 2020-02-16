@@ -104,6 +104,8 @@ final case class IndexesTrie(
     else Iterator((prefix, this.matches)) ++ subTuples
   }
 
+  def isEmpty: Boolean = this.matches.isEmpty && this.children.isEmpty
+
   def commitToDisk(): Unit =
     FileUtils.writeCSVProgressively(
       InvertedIndexFilePath,
