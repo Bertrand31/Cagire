@@ -37,8 +37,9 @@ final case class Cagire(
 
   def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.commitToDisk)
 
-  def ingestFiles: Iterable[String] => Try[Cagire] =
+  def ingestFiles: IterableOnce[String] => Try[Cagire] =
     _
+      .iterator
       .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
       .tap(_.commitToDisk)
 
