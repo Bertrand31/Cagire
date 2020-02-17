@@ -12,11 +12,11 @@ final case class Cagire(
   private val indexesTrie: IndexesTrie = IndexesTrie(),
 ) {
 
-  private def ingestLine(docId: Int)(line: (String, Int)): Cagire = {
+  private def ingestLine(docId: Int)(cagire: Cagire, line: (String, Int)): Cagire = {
     val (lineString, lineNumber) = line
     val words = LineSanitizing.lineToWords(lineString)
-    val newTrie = this.indexesTrie.addLine(docId, lineNumber, words)
-    this.copy(indexesTrie=newTrie)
+    val newTrie = cagire.indexesTrie.addLine(docId, lineNumber, words)
+    cagire.copy(indexesTrie=newTrie)
   }
 
   private def addDocument(documentId: Int, filename: String): Cagire =
@@ -28,15 +28,19 @@ final case class Cagire(
   }
 
   private def ingestFileHandler(path: String): Try[Cagire] =
-    DocumentHandling.getSplitDocument(path).map(tpl => {
-      val (documentId, chunks) = tpl
-      DocumentHandling.writeChunks(
-        documentId,
-        chunks,
-        this,
-        (cagire: Cagire, line: (String, Int)) => cagire.ingestLine(documentId)(line),
-      ).addDocument(documentId, path.split('/').last)
-    })
+    DocumentHandling
+      .getSplitDocument(path)
+      .map(idAndChunks => {
+        val (documentId, chunks) = idAndChunks
+        val newCagire = DocumentHandling.writeChunks(
+          documentId,
+          chunks,
+          this,
+          this.ingestLine(documentId),
+        )
+        val filename = path.split('/').last
+        newCagire.addDocument(documentId, filename)
+      })
 
   def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.commitToDisk)
 
