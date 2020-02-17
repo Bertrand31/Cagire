@@ -1,12 +1,9 @@
 package cagire
 
 import java.io.{File, PrintWriter}
-import scala.util.Using
-import scala.util.Try
-import scala.util.hashing.MurmurHash3
+import scala.util.{Try, Using}
 import cats.implicits._
 import io.circe.Json
-import utils.FileUtils
 import io.circe.syntax.EncoderOps
 import org.roaringbitmap.RoaringBitmap
 import utils.TryUtils._
@@ -29,27 +26,24 @@ final case class Cagire(
   }
 
   private def ingestFileHandler(path: String): Try[Cagire] =
-    FileUtils.readFile(path)
-      .map(_.sliding(ChunkSize, ChunkSize).zip(Iterator from 0))
-      .map(fileIterator => {
-        val head = fileIterator.next
-        val documentId = MurmurHash3.orderedHash(head._1)
-        val subDirectoryPath = StoragePath + documentId
-        new File(subDirectoryPath).mkdir()
+    DocumentHandling.getSplitDocument(path).map(tpl => {
+      val (documentId, chunks) = tpl
+      val subDirectoryPath = StoragePath + documentId
+      new File(subDirectoryPath).mkdir()
 
-        (Iterator(head) ++ fileIterator).foldLeft(this)((acc, chunkTpl) => {
-          val (chunk, chunkNumber) = chunkTpl
-          val filePath = s"$StoragePath$documentId/$chunkNumber"
-          Using.resource(new PrintWriter(new File(filePath)))(writer =>
-            chunk
-              .zip(Iterator.from(ChunkSize * chunkNumber + 1))
-              .foldLeft(acc)((cagire, tpl) => {
-                writer.write(tpl._1 :+ '\n')
-                cagire.ingestLine(documentId)(tpl)
-              })
-          )
-        }).copy(documentsIndex=this.documentsIndex.addDocument(documentId, path.split('/').last))
-      })
+      chunks.foldLeft(this)((acc, chunkTpl) => {
+        val (chunk, chunkNumber) = chunkTpl
+        val filePath = s"$StoragePath$documentId/$chunkNumber"
+        Using.resource(new PrintWriter(new File(filePath)))(writer =>
+          chunk
+            .zip(Iterator.from(ChunkSize * chunkNumber + 1))
+            .foldLeft(acc)((cagire, tpl) => {
+              writer.write(tpl._1 :+ '\n')
+              cagire.ingestLine(documentId)(tpl)
+            })
+        )
+      }).copy(documentsIndex=this.documentsIndex.addDocument(documentId, path.split('/').last))
+    })
 
   def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.commitToDisk)
 

@@ -1,5 +1,6 @@
 package cagire
 
+import scala.util.hashing.MurmurHash3
 import scala.annotation.tailrec
 import scala.util.Try
 import scala.collection.mutable.PriorityQueue
@@ -8,15 +9,19 @@ import utils.FileUtils
 
 object DocumentHandling {
 
-  private def loadDocument(documentId: Int): Try[Iterator[String]] =
-    FileUtils.readFile(StoragePath |+| documentId.toString)
-
-  def loadDocumentWithLinesNumbers(documentId: Int): Try[Iterator[(Int, String)]] =
-    loadDocument(documentId) map (Iterator.from(1) zip _.to(Iterator))
+  def getSplitDocument(path: String): Try[(Int, Iterator[(Seq[String], Int)])] =
+    FileUtils.readFile(path)
+      .map(_.sliding(ChunkSize, ChunkSize).zip(Iterator from 0))
+      .map(fileIterator => {
+        val head = fileIterator.next
+        val documentId = MurmurHash3.orderedHash(head._1)
+        val completeIterator = (Iterator(head) ++ fileIterator)
+        (documentId, completeIterator)
+      })
 
   /** Loads the required lines from a lazy iterator without holding more than one line
     * in memory at any given point (except from the ones being accumulated).
-    * This method is made public for testing purposes.
+    * This method is public only for testing purposes.
     */
   @tailrec
   def loadLines(
