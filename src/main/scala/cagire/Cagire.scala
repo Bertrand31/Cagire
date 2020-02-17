@@ -65,7 +65,7 @@ final case class Cagire(
       })
       .to(LazyList)
       .sequence
-      .map(_.asJson)
+      .map(_.toMap.asJson)
 
   def searchWordAndFormat: String => Try[Json] = searchWord >>> formatResults
 

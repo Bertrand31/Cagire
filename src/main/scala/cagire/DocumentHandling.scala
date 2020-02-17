@@ -1,9 +1,9 @@
 package cagire
 
 import java.io.{File, PrintWriter}
-import scala.util.hashing.MurmurHash3
 import scala.annotation.tailrec
 import scala.util.{Try, Using}
+import scala.util.hashing.MurmurHash3
 import scala.collection.mutable.PriorityQueue
 import cats.implicits._
 import utils.FileUtils
@@ -69,7 +69,6 @@ object DocumentHandling {
   ): A = {
     val subDirectoryPath = StoragePath + documentId
     new File(subDirectoryPath).mkdir()
-
     chunks.foldLeft(accumulator)((acc, chunkTpl) => {
       val (chunk, chunkNumber) = chunkTpl
       val filePath = s"$subDirectoryPath/$chunkNumber"
