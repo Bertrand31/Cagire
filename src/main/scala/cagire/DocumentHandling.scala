@@ -28,28 +28,28 @@ object DocumentHandling {
       loadLines(targets, currentTarget + 1, soFar + targetLine)(document)
     }
 
-    private def toChunkNumber: Int => Int = _ / ChunkSize
+  private def toChunkNumber: Int => Int = _ / ChunkSize
 
-    private def toRelativeLine: Int => Int = _ % ChunkSize
+  private def toRelativeLine: Int => Int = _ % ChunkSize
 
-    private def toAbsoluteLine(chunkNumber: Int, lineNumber: Int): Int =
-      chunkNumber * ChunkSize + lineNumber
+  private def toAbsoluteLine(chunkNumber: Int, lineNumber: Int): Int =
+    chunkNumber * ChunkSize + lineNumber
 
-    def loadLinesFromDocument(documentId: Int, targets: Seq[Int]): Try[Map[Int, String]] =
-      targets
-        .groupBy(toChunkNumber)
-        .map({
-          case (chunkNumber, lineNumbers) => {
-            val absoluteLineNumbers = lineNumbers map toRelativeLine
-            val targetsMinHeap = PriorityQueue(absoluteLineNumbers:_*)(Ordering[Int].reverse)
-            FileUtils.readFile(s"$StoragePath$documentId/$chunkNumber")
-              .map(loadLines(targetsMinHeap))
-              .map(_.map({ case (lineNb, line) => (toAbsoluteLine(chunkNumber, lineNb), line) }))
-          }
-        })
-        .to(LazyList)
-        .sequence
-        .map(_ foldMap identity)
+  def loadLinesFromDocument(documentId: Int, targets: Seq[Int]): Try[Map[Int, String]] =
+    targets
+      .groupBy(toChunkNumber)
+      .map({
+        case (chunkNumber, lineNumbers) => {
+          val absoluteLineNumbers = lineNumbers map toRelativeLine
+          val targetsMinHeap = PriorityQueue(absoluteLineNumbers:_*)(Ordering[Int].reverse)
+          FileUtils.readFile(s"$StoragePath$documentId/$chunkNumber")
+            .map(loadLines(targetsMinHeap))
+            .map(_.map({ case (lineNb, line) => (toAbsoluteLine(chunkNumber, lineNb), line) }))
+        }
+      })
+      .to(LazyList)
+      .sequence
+      .map(_ foldMap identity)
 
   def getSplitDocument(path: String): Try[(Int, Iterator[(Seq[String], Int)])] =
     FileUtils.readFile(path)
@@ -61,6 +61,12 @@ object DocumentHandling {
         (documentId, completeIterator)
       })
 
+  /** This method walks through an iterator of chunks, comitting them to the disk as well as
+    * accumulating them onto an `accumulator`, using the `accFn` function.
+    * The API and the code of this function are rather convoluted, but it allows us to both keep
+    * the responsibilities split between the main Cagire case class and this file, as well as
+    * having to walk through the file only once (and avoid any mutation).
+    */
   def writeChunksAndAccumulate[A](
     documentId: Int,
     chunks: Iterator[(Seq[String], Int)],
