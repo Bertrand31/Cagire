@@ -32,7 +32,7 @@ final case class Cagire(
       .getSplitDocument(path)
       .map(idAndChunks => {
         val (documentId, chunks) = idAndChunks
-        val newCagire = DocumentHandling.writeChunks(
+        val newCagire = DocumentHandling.writeChunksAndAccumulate(
           documentId,
           chunks,
           this,

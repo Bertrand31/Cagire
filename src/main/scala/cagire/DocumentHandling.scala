@@ -61,7 +61,7 @@ object DocumentHandling {
         (documentId, completeIterator)
       })
 
-  def writeChunks[A](
+  def writeChunksAndAccumulate[A](
     documentId: Int,
     chunks: Iterator[(Seq[String], Int)],
     accumulator: A,
