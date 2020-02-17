@@ -51,7 +51,7 @@ object DocumentHandling {
           case (documentNumber, lineNumbers) => {
             val absoluteLineNumbers = lineNumbers map toRelativeLine
             val targetsMinHeap = PriorityQueue(absoluteLineNumbers:_*)(Ordering[Int].reverse)
-            FileUtils.readFile(s"$StoragePath${documentId.toString}/$documentNumber")
+            FileUtils.readFile(s"$StoragePath$documentId/$documentNumber")
               .map(loadLines(targetsMinHeap))
               .map(_.map({ case (lineNb, line) => (toAbsoluteLine(documentNumber, lineNb), line) }))
           }

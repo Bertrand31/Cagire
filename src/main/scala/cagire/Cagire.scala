@@ -58,13 +58,17 @@ final case class Cagire(
   def searchPrefix: String => Map[Int, RoaringBitmap] = indexesTrie.matchesWithPrefix
 
   private def formatResults: Map[Int, RoaringBitmap] => Try[Json] =
-    _.map(matchTpl => {
-      val (documentId, linesMatches) = matchTpl
-      val filename = documentsIndex.getFilename(documentId)
-      DocumentHandling
-        .loadLinesFromDocument(documentId, linesMatches.toArray.toIndexedSeq)
-        .map((filename -> _))
-    }).toList.sequence.map(_.asJson)
+    _
+      .map(matchTpl => {
+        val (documentId, linesMatches) = matchTpl
+        val filename = documentsIndex.getFilename(documentId)
+        DocumentHandling
+          .loadLinesFromDocument(documentId, linesMatches.toArray.toIndexedSeq)
+          .map((filename -> _))
+      })
+      .to(LazyList)
+      .sequence
+      .map(_.asJson)
 
   def searchWordAndFormat: String => Try[Json] = searchWord >>> formatResults
 
