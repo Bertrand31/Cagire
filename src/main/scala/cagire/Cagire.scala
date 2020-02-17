@@ -1,6 +1,7 @@
 package cagire
 
 import java.io.{File, PrintWriter}
+import scala.util.Using
 import scala.util.Try
 import scala.util.hashing.MurmurHash3
 import cats.implicits._
@@ -15,11 +16,11 @@ final case class Cagire(
   private val indexesTrie: IndexesTrie = IndexesTrie(),
 ) {
 
-  private def ingestLine(docId: Int)(cagire: Cagire, line: (Int, String)): Cagire = {
-    val (lineNumber, lineString) = line
+  private def ingestLine(docId: Int)(line: (String, Int)): Cagire = {
+    val (lineString, lineNumber) = line
     val words = LineSanitizing.lineToWords(lineString)
-    val newTrie = cagire.indexesTrie.addLine(docId, lineNumber, words)
-    cagire.copy(indexesTrie=newTrie)
+    val newTrie = this.indexesTrie.addLine(docId, lineNumber, words)
+    this.copy(indexesTrie=newTrie)
   }
 
   private def commitToDisk(): Unit = {
@@ -38,16 +39,15 @@ final case class Cagire(
 
         (Iterator(head) ++ fileIterator).foldLeft(this)((acc, chunkTpl) => {
           val (chunk, chunkNumber) = chunkTpl
-          val filePath = StoragePath + documentId + "/" + chunkNumber
-          val writer = new PrintWriter(new File(filePath))
-          val newCagire = chunk
-            .zip(Iterator.from(ChunkSize * chunkNumber + 1))
-            .foldLeft(acc)((cagire, tpl) => {
-              writer.write(tpl._1 :+ '\n')
-              cagire.ingestLine(documentId)(cagire, (tpl._2, tpl._1))
-            })
-          writer.close()
-          newCagire
+          val filePath = s"$StoragePath$documentId/$chunkNumber"
+          Using.resource(new PrintWriter(new File(filePath)))(writer =>
+            chunk
+              .zip(Iterator.from(ChunkSize * chunkNumber + 1))
+              .foldLeft(acc)((cagire, tpl) => {
+                writer.write(tpl._1 :+ '\n')
+                cagire.ingestLine(documentId)(tpl)
+              })
+          )
         }).copy(documentsIndex=this.documentsIndex.addDocument(documentId, path.split('/').last))
       })
 

@@ -2,7 +2,6 @@ package cagire
 
 import scala.annotation.tailrec
 import scala.util.Try
-import scala.util.hashing.MurmurHash3
 import scala.collection.mutable.PriorityQueue
 import cats.implicits._
 import utils.FileUtils
@@ -33,17 +32,23 @@ object DocumentHandling {
       loadLines(targets, currentTarget + 1, soFar + targetLine)(document)
     }
 
+    private def toChunkNumber: Int => Int = _ / ChunkSize
+
+    private def toRelativeLine: Int => Int = _ % ChunkSize
+
+    private def toAbsoluteLine(chunkNumber: Int, lineNumber: Int): Int =
+      chunkNumber * ChunkSize + lineNumber
+
     def loadLinesFromDocument(documentId: Int, targets: Seq[Int]): Try[Map[Int, String]] =
       targets
-        .groupBy(_ / ChunkSize)
+        .groupBy(toChunkNumber)
         .map({
           case (documentNumber, lineNumbers) => {
-            val absoluteLineNumbers = lineNumbers.map(_ % ChunkSize)
+            val absoluteLineNumbers = lineNumbers map toRelativeLine
             val targetsMinHeap = PriorityQueue(absoluteLineNumbers:_*)(Ordering[Int].reverse)
-            val filePath = StoragePath + documentId.toString + "/" + documentNumber
-            FileUtils.readFile(filePath)
+            FileUtils.readFile(s"$StoragePath${documentId.toString}/$documentNumber")
               .map(loadLines(targetsMinHeap))
-              .map(_.map({ case (nb, line) => (documentNumber * ChunkSize + nb, line) }))
+              .map(_.map({ case (lineNb, line) => (toAbsoluteLine(documentNumber, lineNb), line) }))
           }
         })
         .to(LazyList)
