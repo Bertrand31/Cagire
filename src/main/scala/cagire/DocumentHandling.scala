@@ -1,8 +1,9 @@
 package cagire
 
+import java.io.{File, PrintWriter}
 import scala.util.hashing.MurmurHash3
 import scala.annotation.tailrec
-import scala.util.Try
+import scala.util.{Try, Using}
 import scala.collection.mutable.PriorityQueue
 import cats.implicits._
 import utils.FileUtils
@@ -48,15 +49,38 @@ object DocumentHandling {
       targets
         .groupBy(toChunkNumber)
         .map({
-          case (documentNumber, lineNumbers) => {
+          case (chunkNumber, lineNumbers) => {
             val absoluteLineNumbers = lineNumbers map toRelativeLine
             val targetsMinHeap = PriorityQueue(absoluteLineNumbers:_*)(Ordering[Int].reverse)
-            FileUtils.readFile(s"$StoragePath$documentId/$documentNumber")
+            FileUtils.readFile(s"$StoragePath$documentId/$chunkNumber")
               .map(loadLines(targetsMinHeap))
-              .map(_.map({ case (lineNb, line) => (toAbsoluteLine(documentNumber, lineNb), line) }))
+              .map(_.map({ case (lineNb, line) => (toAbsoluteLine(chunkNumber, lineNb), line) }))
           }
         })
         .to(LazyList)
         .sequence
         .map(_ foldMap identity)
+
+  def writeChunks[A](
+    documentId: Int,
+    chunks: Iterator[(Seq[String], Int)],
+    accumulator: A,
+    accFn: (A, (String, Int)) => A,
+  ): A = {
+    val subDirectoryPath = StoragePath + documentId
+    new File(subDirectoryPath).mkdir()
+
+    chunks.foldLeft(accumulator)((acc, chunkTpl) => {
+      val (chunk, chunkNumber) = chunkTpl
+      val filePath = s"$subDirectoryPath/$chunkNumber"
+      Using.resource(new PrintWriter(new File(filePath)))(writer =>
+        chunk
+          .zip(Iterator from toAbsoluteLine(chunkNumber, 1))
+          .foldLeft(acc)((subAcc, tpl) => {
+            writer.write(tpl._1 :+ '\n')
+            accFn(subAcc, tpl)
+          })
+       )
+    })
+  }
 }

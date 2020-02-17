@@ -1,7 +1,6 @@
 package cagire
 
-import java.io.{File, PrintWriter}
-import scala.util.{Try, Using}
+import scala.util.Try
 import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -20,6 +19,9 @@ final case class Cagire(
     this.copy(indexesTrie=newTrie)
   }
 
+  private def addDocument(documentId: Int, filename: String): Cagire =
+    this.copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
+
   private def commitToDisk(): Unit = {
     this.documentsIndex.commitToDisk()
     this.indexesTrie.commitToDisk()
@@ -28,21 +30,12 @@ final case class Cagire(
   private def ingestFileHandler(path: String): Try[Cagire] =
     DocumentHandling.getSplitDocument(path).map(tpl => {
       val (documentId, chunks) = tpl
-      val subDirectoryPath = StoragePath + documentId
-      new File(subDirectoryPath).mkdir()
-
-      chunks.foldLeft(this)((acc, chunkTpl) => {
-        val (chunk, chunkNumber) = chunkTpl
-        val filePath = s"$StoragePath$documentId/$chunkNumber"
-        Using.resource(new PrintWriter(new File(filePath)))(writer =>
-          chunk
-            .zip(Iterator.from(ChunkSize * chunkNumber + 1))
-            .foldLeft(acc)((cagire, tpl) => {
-              writer.write(tpl._1 :+ '\n')
-              cagire.ingestLine(documentId)(tpl)
-            })
-        )
-      }).copy(documentsIndex=this.documentsIndex.addDocument(documentId, path.split('/').last))
+      DocumentHandling.writeChunks(
+        documentId,
+        chunks,
+        this,
+        (cagire: Cagire, line: (String, Int)) => cagire.ingestLine(documentId)(line),
+      ).addDocument(documentId, path.split('/').last)
     })
 
   def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.commitToDisk)
