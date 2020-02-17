@@ -1,8 +1,11 @@
 package cagire
 
+import java.io.{File, PrintWriter}
 import scala.util.Try
+import scala.util.hashing.MurmurHash3
 import cats.implicits._
 import io.circe.Json
+import utils.FileUtils
 import io.circe.syntax.EncoderOps
 import org.roaringbitmap.RoaringBitmap
 import utils.TryUtils._
@@ -25,15 +28,28 @@ final case class Cagire(
   }
 
   private def ingestFileHandler(path: String): Try[Cagire] =
-    for {
-      documentId <- DocumentHandling.storeDocument(path)
-      documentLines <- DocumentHandling.loadDocumentWithLinesNumbers(documentId)
-    } yield {
-      val filename = path.split('/').last
-      documentLines
-        .foldLeft(this)(ingestLine(documentId))
-        .copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
-    }
+    FileUtils.readFile(path)
+      .map(_.sliding(ChunkSize, ChunkSize).zip(Iterator from 0))
+      .map(fileIterator => {
+        val head = fileIterator.next
+        val documentId = MurmurHash3.orderedHash(head._1)
+        val subDirectoryPath = StoragePath + documentId
+        new File(subDirectoryPath).mkdir()
+
+        (Iterator(head) ++ fileIterator).foldLeft(this)((acc, chunkTpl) => {
+          val (chunk, chunkNumber) = chunkTpl
+          val filePath = StoragePath + documentId + "/" + chunkNumber
+          val writer = new PrintWriter(new File(filePath))
+          val newCagire = chunk
+            .zip(Iterator.from(ChunkSize * chunkNumber + 1))
+            .foldLeft(acc)((cagire, tpl) => {
+              writer.write(tpl._1 :+ '\n')
+              cagire.ingestLine(documentId)(cagire, (tpl._2, tpl._1))
+            })
+          writer.close()
+          newCagire
+        }).copy(documentsIndex=this.documentsIndex.addDocument(documentId, path.split('/').last))
+      })
 
   def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.commitToDisk)
 
@@ -47,20 +63,18 @@ final case class Cagire(
 
   def searchPrefix: String => Map[Int, RoaringBitmap] = indexesTrie.matchesWithPrefix
 
-  private def formatResults: Map[Int, RoaringBitmap] => Json =
+  private def formatResults: Map[Int, RoaringBitmap] => Try[Json] =
     _.map(matchTpl => {
       val (documentId, linesMatches) = matchTpl
       val filename = documentsIndex.getFilename(documentId)
-      val matches =
-        DocumentHandling
-          .loadLinesFromDocument(documentId, linesMatches.toArray.toIndexedSeq)
-          .getOrElse(Map())
-      (filename -> matches)
-    }).asJson
+      DocumentHandling
+        .loadLinesFromDocument(documentId, linesMatches.toArray.toIndexedSeq)
+        .map((filename -> _))
+    }).toList.sequence.map(_.asJson)
 
-  def searchWordAndFormat: String => Json = searchWord >>> formatResults
+  def searchWordAndFormat: String => Try[Json] = searchWord >>> formatResults
 
-  def searchPrefixAndFormat: String => Json = searchPrefix >>> formatResults
+  def searchPrefixAndFormat: String => Try[Json] = searchPrefix >>> formatResults
 }
 
 object Cagire {
