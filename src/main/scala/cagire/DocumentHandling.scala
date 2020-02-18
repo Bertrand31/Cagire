@@ -39,13 +39,12 @@ object DocumentHandling {
     targets
       .groupBy(toChunkNumber)
       .map({
-        case (chunkNumber, lineNumbers) => {
+        case (chunkNumber, lineNumbers) =>
           val absoluteLineNumbers = lineNumbers map toRelativeLine
           val targetsMinHeap = PriorityQueue(absoluteLineNumbers:_*)(Ordering[Int].reverse)
           FileUtils.readFile(s"$StoragePath$documentId/$chunkNumber")
             .map(loadLines(targetsMinHeap))
             .map(_.map({ case (lineNb, line) => (toAbsoluteLine(chunkNumber, lineNb), line) }))
-        }
       })
       .to(LazyList)
       .sequence
