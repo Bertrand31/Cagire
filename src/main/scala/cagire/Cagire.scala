@@ -1,11 +1,11 @@
 package cagire
 
 import scala.util.Try
+import scala.util.chaining.scalaUtilChainingOps
 import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.roaringbitmap.RoaringBitmap
-import utils.TryUtils._
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
@@ -42,13 +42,13 @@ final case class Cagire(
         newCagire.addDocument(documentId, filename)
       })
 
-  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.commitToDisk)
+  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.foreach(_.commitToDisk))
 
   def ingestFiles: IterableOnce[String] => Try[Cagire] =
     _
       .iterator
       .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
-      .tap(_.commitToDisk)
+      .tap(_.foreach(_.commitToDisk))
 
   def searchWord: String => Map[Int, RoaringBitmap] = indexesTrie.matchesForWord
 
