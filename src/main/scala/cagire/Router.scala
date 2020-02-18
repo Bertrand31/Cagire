@@ -3,6 +3,7 @@ package cagire
 import scala.util.Try
 import scala.util.chaining.scalaUtilChainingOps
 import cats.effect.{IO, Sync}
+import cats.implicits._
 import org.http4s.{HttpRoutes, Response}
 import org.http4s.dsl.io._
 import org.http4s.circe.{jsonEncoder, jsonOf}
@@ -27,13 +28,13 @@ object Router {
     HttpRoutes.of[IO] {
 
       case req @ POST -> Root / "ingest" =>
-        req.as[Array[String]].flatMap(paths => {
+        req.as[Array[String]] >>= (paths =>
           handleTryJson(
             cagire.ingestFiles(paths)
               .tap(_ foreach { this.cagire = _ })
               .map(_ => "Ingested".asJson)
           )
-        })
+        )
 
       case GET -> Root / "search-prefix" / prefix =>
         handleTryJson(cagire searchPrefixAndFormat prefix)

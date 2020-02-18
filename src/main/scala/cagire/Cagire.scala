@@ -9,7 +9,7 @@ import org.roaringbitmap.RoaringBitmap
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
-  private val indexesTrie: IndexesTrie       = IndexesTrie(),
+  private val indexesTrie: IndexesTrie = IndexesTrie(),
 ) {
 
   private def ingestLine(docId: Int)(cagire: Cagire, line: (String, Int)): Cagire = {
