@@ -25,5 +25,5 @@ To improve this, the files ingested are split into small chunks of 10 thousand l
 later have to load a lot less data from the disk since we only open the useful chunks.
 
 On my laptop (with an _Intel Core i7-1065G7 CPU @ 1.30GHz CPU_), it'll search through 31 million
-words and return all the partial matches in 30ms.
-It will search through the same amount of data and return exact word matches in 10ms.
+words and return all the partial matches in <30ms.
+It will search through the same amount of data and return exact word matches in <10ms.

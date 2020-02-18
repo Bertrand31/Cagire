@@ -10,6 +10,44 @@ import utils.FileUtils
 
 object DocumentHandling {
 
+  def getSplitDocument(path: String): Try[(Int, Iterator[(Seq[String], Int)])] =
+    FileUtils.readFile(path)
+      .map(_.sliding(ChunkSize, ChunkSize).zip(Iterator from 0))
+      .map(fileIterator => {
+        val head = fileIterator.next
+        val documentId = MurmurHash3.orderedHash(head._1)
+        val completeIterator = Iterator(head) ++ fileIterator
+        (documentId, completeIterator)
+      })
+
+  /** This method walks through an iterator of chunks, comitting them to the disk as well as
+    * accumulating them onto an `accumulator`, using the `accFn` function.
+    * The API and the code of this function are rather convoluted, but it allows us to both keep
+    * the responsibilities split between the main Cagire case class and this file, as well as
+    * having to walk through the file only once (and avoid any mutation).
+    */
+  def writeChunksAndAccumulate[A](
+    documentId: Int,
+    chunks: Iterator[(Seq[String], Int)],
+    accumulator: A,
+    accFn: (A, (String, Int)) => A,
+  ): A = {
+    val subDirectoryPath = StoragePath + documentId
+    new File(subDirectoryPath).mkdir()
+    chunks.foldLeft(accumulator)((acc, chunkTpl) => {
+      val (chunk, chunkNumber) = chunkTpl
+      val filePath = s"$subDirectoryPath/$chunkNumber"
+      Using.resource(new PrintWriter(new File(filePath)))(writer =>
+        chunk
+          .zip(Iterator from toAbsoluteLine(chunkNumber, 1))
+          .foldLeft(acc)((subAcc, tpl) => {
+            writer.write(tpl._1 :+ '\n')
+            accFn(subAcc, tpl)
+          })
+       )
+    })
+  }
+
   /** Loads the required lines from a lazy iterator without holding more than one line
     * in memory at any given point (except from the ones being accumulated).
     * This method is public only for testing purposes.
@@ -49,42 +87,4 @@ object DocumentHandling {
       .to(LazyList)
       .sequence
       .map(_ foldMap identity)
-
-  def getSplitDocument(path: String): Try[(Int, Iterator[(Seq[String], Int)])] =
-    FileUtils.readFile(path)
-      .map(_.sliding(ChunkSize, ChunkSize).zip(Iterator from 0))
-      .map(fileIterator => {
-        val head = fileIterator.next
-        val documentId = MurmurHash3.orderedHash(head._1)
-        val completeIterator = (Iterator(head) ++ fileIterator)
-        (documentId, completeIterator)
-      })
-
-  /** This method walks through an iterator of chunks, comitting them to the disk as well as
-    * accumulating them onto an `accumulator`, using the `accFn` function.
-    * The API and the code of this function are rather convoluted, but it allows us to both keep
-    * the responsibilities split between the main Cagire case class and this file, as well as
-    * having to walk through the file only once (and avoid any mutation).
-    */
-  def writeChunksAndAccumulate[A](
-    documentId: Int,
-    chunks: Iterator[(Seq[String], Int)],
-    accumulator: A,
-    accFn: (A, (String, Int)) => A,
-  ): A = {
-    val subDirectoryPath = StoragePath + documentId
-    new File(subDirectoryPath).mkdir()
-    chunks.foldLeft(accumulator)((acc, chunkTpl) => {
-      val (chunk, chunkNumber) = chunkTpl
-      val filePath = s"$subDirectoryPath/$chunkNumber"
-      Using.resource(new PrintWriter(new File(filePath)))(writer =>
-        chunk
-          .zip(Iterator from toAbsoluteLine(chunkNumber, 1))
-          .foldLeft(acc)((subAcc, tpl) => {
-            writer.write(tpl._1 :+ '\n')
-            accFn(subAcc, tpl)
-          })
-       )
-    })
-  }
 }

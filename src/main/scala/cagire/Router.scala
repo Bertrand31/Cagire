@@ -3,12 +3,11 @@ package cagire
 import scala.util.Try
 import scala.util.chaining.scalaUtilChainingOps
 import cats.effect.{IO, Sync}
-import org.http4s.HttpRoutes
+import org.http4s.{HttpRoutes, Response}
 import org.http4s.dsl.io._
 import org.http4s.circe.{jsonEncoder, jsonOf}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.http4s.Response
 
 object Router {
 

@@ -19,7 +19,7 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
       this.index
         .view
         .to(Iterator)
-        .map({ case (id, filename) => s"${id.toString};$filename" }),
+        .map({ case (id, filename) => s"$id;$filename" }),
     )
 }
 

@@ -1,11 +1,11 @@
 package cagire
 
 import scala.concurrent.duration.DurationInt
-import cats.effect.{ConcurrentEffect, ContextShift, Timer, ExitCode, IO, IOApp}
 import cats.implicits._
+import cats.effect.{ConcurrentEffect, ContextShift, Timer, ExitCode, IO, IOApp}
 import fs2.Stream
-import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.implicits._
+import org.http4s.server.blaze.BlazeServerBuilder
 
 object Server {
 

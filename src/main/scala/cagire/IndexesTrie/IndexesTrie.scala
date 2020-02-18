@@ -5,8 +5,8 @@ import cats.implicits._
 import org.roaringbitmap.RoaringBitmap
 import io.circe.syntax.EncoderOps
 import io.circe.parser.decode
-import utils.RoaringBitmapMonoid.roaringBitmapMonoid
 import utils.FileUtils
+import utils.RoaringBitmapMonoid.roaringBitmapMonoid
 
 /* This implementation of a IndexesTrie uses Maps instead of Arrays to store the child nodes.
  * This approach is slower to explore, but since we want this IndexesTrie to support

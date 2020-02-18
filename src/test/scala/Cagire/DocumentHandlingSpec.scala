@@ -10,12 +10,13 @@ class DocumentHandlingSpec extends AnyFlatSpec {
 
   val fakeDocument = Iterator.from(1).map(_.toString).take(20)
 
-  it should "store a document name and ID" in {
+  it should "retrieve the specified lines from an iterator" in {
 
-    val targetsMinHeap = PriorityQueue(1, 3, 8)(Ordering[Int].reverse)
+    val targetsMinHeap = PriorityQueue(1, 3, 7, 8)(Ordering[Int].reverse)
     val expectedOutput = Map(
       (1 -> "1"),
       (3 -> "3"),
+      (7 -> "7"),
       (8 -> "8"),
     )
     assert(DocumentHandling.loadLines(targetsMinHeap)(fakeDocument) == expectedOutput)
