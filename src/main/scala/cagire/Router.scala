@@ -1,6 +1,7 @@
 package cagire
 
 import scala.util.Try
+import scala.util.chaining.scalaUtilChainingOps
 import cats.effect.{IO, Sync}
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
@@ -30,10 +31,8 @@ object Router {
         req.as[Array[String]].flatMap(paths => {
           handleTryJson(
             cagire.ingestFiles(paths)
-              .map(newCagire => {
-                cagire = newCagire
-                "Ingested".asJson
-              })
+              .tap(_ foreach { this.cagire = _ })
+              .map(_ => "Ingested".asJson)
           )
         })
 
