@@ -18,19 +18,17 @@ libraryDependencies ++= Seq(
   "org.http4s"    %% "http4s-dsl" % Http4sVersion,
   // JSON encoding and decoding
   "io.circe"      %% "circe-generic" % CirceVersion,
+  "io.circe" %% "circe-core" % CirceVersion,
+  "io.circe" %% "circe-generic" % CirceVersion,
+  "io.circe" %% "circe-parser" % CirceVersion,
   // Tests
   "org.scalatest" %% "scalatest" % "3.1.0",
   // Misc
   "org.roaringbitmap" % "RoaringBitmap" % "0.8.9",
   "org.typelevel" %% "cats-core" % "2.1.0",
-  // JSON
-  "io.circe" %% "circe-core" % CirceVersion,
-  "io.circe" %% "circe-generic" % CirceVersion,
-  "io.circe" %% "circe-parser" % CirceVersion,
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
-addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0")
 
 scalacOptions ++= Seq(
   "-deprecation", // Warn about deprecated features
