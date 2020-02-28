@@ -19,7 +19,7 @@ final case class IndexesTrie(
   private val matches: Map[Int, RoaringBitmap] = Map(),
 ) {
 
-  import IndexesTrie.InvertedIndexFilePath
+  import IndexesTrie._
 
   private def getIndexesFromString: String => Seq[Char] =
     _
@@ -106,24 +106,45 @@ final case class IndexesTrie(
 
   def isEmpty: Boolean = this.matches.isEmpty && this.children.isEmpty
 
-  def commitToDisk(): Unit =
-    FileUtils.writeCSVProgressively(
-      InvertedIndexFilePath,
-      this.children
-        .view
-        .to(Iterator)
-        .flatMap({ case (char, subTrie) => subTrie.getTuples(char.toString) })
-        .map({ case (word, matches) =>
-          s"$word;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
-        }),
-    )
+  private def getBucket: String => Int = _.hashCode % IndexBucketsNumber
+
+  def commitToDisk(dirtyPrefixes: Set[String]): Unit = {
+    this.children
+      .flatMap({
+        case (char, subTrie) =>
+          subTrie.children.map({
+            case (subChar, subTrie) => (s"$char$subChar", subTrie)
+          })
+      })
+      .filter({ case (prefix, _) => dirtyPrefixes.contains(prefix) })
+      .groupBy({ case (prefix, _) => getBucket(prefix) })
+      .foreach({
+        case (bucket, branches) =>
+          FileUtils.writeCSVProgressively(
+            makeBucketFilename(bucket),
+            branches.iterator.flatMap({
+              case (prefix, subTrie) =>
+                subTrie
+                  .getTuples(prefix)
+                  .map({ case (word, matches) =>
+                    s"$word;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
+                  })
+            }),
+          )
+      })
+  }
 }
 
 object IndexesTrie {
 
-  private def InvertedIndexFilePath = StoragePath |+| "inverted_index.csv"
+  private def makeBucketFilename: Int => String =
+    StoragePath + "inverted_index/" + _ + "-bucket.csv"
 
-  private def decodeIndexLine: Iterator[String] => Iterator[(String, Map[Int, RoaringBitmap])] =
+  private val IndexBucketsNumber = 100
+
+  val PrefixLength = 2
+
+  private def decodeIndexLines: Iterator[String] => Iterator[(String, Map[Int, RoaringBitmap])] =
     _
       .map(line => {
         val Array(word, matchesStr) = line.split(';')
@@ -138,8 +159,12 @@ object IndexesTrie {
 
 
   def hydrate(): Try[IndexesTrie] =
-    FileUtils
-      .readFile(InvertedIndexFilePath)
-      .map(decodeIndexLine)
-      .map(_.foldLeft(IndexesTrie())(_ insertTuple _))
+    (0 until IndexBucketsNumber)
+      .foldLeft(Try(IndexesTrie()))((tryTrie, bucket) =>
+        tryTrie.flatMap(trie =>
+          FileUtils.readFile(makeBucketFilename(bucket))
+            .map(decodeIndexLines)
+            .map(_.foldLeft(trie)(_ insertTuple _))
+        )
+      )
 }
