@@ -1,6 +1,6 @@
 package cagire
 
-import scala.util.Try
+import scala.util.{Failure, Success}
 import cats.implicits._
 import org.roaringbitmap.RoaringBitmap
 import io.circe.syntax.EncoderOps
@@ -140,7 +140,7 @@ object IndexesTrie {
   private def makeBucketFilename: Int => String =
     StoragePath + "inverted_index/" + _ + "-bucket.csv"
 
-  private val IndexBucketsNumber = 100
+  private val IndexBucketsNumber = 200
 
   val PrefixLength = 2
 
@@ -158,13 +158,12 @@ object IndexesTrie {
       })
 
 
-  def hydrate(): Try[IndexesTrie] =
+  def hydrate(): IndexesTrie =
     (0 until IndexBucketsNumber)
-      .foldLeft(Try(IndexesTrie()))((tryTrie, bucket) =>
-        tryTrie.flatMap(trie =>
-          FileUtils.readFile(makeBucketFilename(bucket))
-            .map(decodeIndexLines)
-            .map(_.foldLeft(trie)(_ insertTuple _))
-        )
+      .foldLeft(IndexesTrie())((trie, bucket) =>
+        FileUtils.readFile(makeBucketFilename(bucket)) match {
+          case Success(lines) => decodeIndexLines(lines).foldLeft(trie)(_ insertTuple _)
+          case Failure(_) => trie
+        }
       )
 }
