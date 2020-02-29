@@ -1,7 +1,6 @@
 package cagire
 
 import scala.util.Try
-import scala.util.chaining.scalaUtilChainingOps
 import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -9,7 +8,7 @@ import org.roaringbitmap.RoaringBitmap
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
-  private val indexesTrie: IndexesTrieRoot = IndexesTrieRoot(),
+  private val indexesTrie: IndexesTrie = IndexesTrie(),
 ) {
 
   private def ingestLine(docId: Int)(cagire: Cagire, line: (String, Int)): Cagire = {
@@ -22,9 +21,10 @@ final case class Cagire(
   private def addDocument(documentId: Int, filename: String): Cagire =
     this.copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
 
-  private def commitToDisk(): Unit = {
+  private def commitToDisk(): Cagire = {
     this.documentsIndex.commitToDisk()
-    this.indexesTrie.commitToDisk()
+    val newIndexesTrie = this.indexesTrie.commitToDisk()
+    this.copy(indexesTrie=newIndexesTrie)
   }
 
   private def ingestFileHandler(path: String): Try[Cagire] =
@@ -42,13 +42,13 @@ final case class Cagire(
         newCagire.addDocument(documentId, filename)
       })
 
-  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.map(_.commitToDisk))
+  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).map(_.commitToDisk)
 
   def ingestFiles: IterableOnce[String] => Try[Cagire] =
     _
       .iterator
       .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
-      .tap(_.map(_.commitToDisk))
+      .map(_.commitToDisk)
 
   def searchWord: String => Map[Int, RoaringBitmap] = indexesTrie.matchesForWord
 
@@ -77,7 +77,7 @@ object Cagire {
   def bootstrap(): Cagire = {
     for {
       documentsIndex <- DocumentsIndex.hydrate
-      indexesTrie = IndexesTrieRoot.hydrate
+      indexesTrie = IndexesTrie.hydrate
     } yield (Cagire(documentsIndex, indexesTrie))
   }.getOrElse(Cagire())
 }

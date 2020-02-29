@@ -32,8 +32,8 @@ object DocumentHandling {
     accumulator: A,
     accFn: (A, (String, Int)) => A,
   ): A = {
-    val subDirectoryPath = StoragePath + documentId
-    new File(subDirectoryPath).mkdir()
+    val subDirectoryPath = StoragePath + "documents/" + documentId
+    new File(subDirectoryPath).mkdirs()
     chunks.foldLeft(accumulator)((acc, chunkTpl) => {
       val (chunk, chunkNumber) = chunkTpl
       val filePath = s"$subDirectoryPath/$chunkNumber"

@@ -8,39 +8,26 @@ import io.circe.parser.decode
 import utils.FileUtils
 import utils.RoaringBitmapMonoid.roaringBitmapMonoid
 
-/* This implementation of a IndexesTrie uses Maps instead of Arrays to store the child nodes.
- * This approach is slower to explore, but since we want this IndexesTrie to support
- * all 16-bits characters of a Scala string, it was either Maps or Arrays of
- * length 65535, which would have blown up memory use.
- */
-
-object IndexesTrieShared {
-
-  def makeBucketFilename: Int => String = StoragePath + "inverted_index/" + _ + "-bucket.csv"
-
-  val IndexBucketsNumber = 200
-
-  val PrefixLength = 2
-
-  def getBucket: String => Int = _.hashCode % IndexBucketsNumber
-}
-
-final case class IndexesTrieRoot(
+final case class IndexesTrie(
   private val dirtyBuckets: Set[Int] = Set(),
-  private val trie: IndexesTrie = IndexesTrie(),
+  private val trie: IndexesTrieNode = IndexesTrieNode(),
 ) {
 
-  import IndexesTrieShared._
+  import IndexesTrie._
 
-  def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrieRoot =
-    IndexesTrieRoot(
+  private val PrefixLength = 2
+
+  private def getBucket: String => Int = _.hashCode % IndexBucketsNumber
+
+  def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrie =
+    IndexesTrie(
       dirtyBuckets=(this.dirtyBuckets ++ words.map(_ take PrefixLength).map(getBucket)),
       trie=this.trie.addLine(docId, lineNumber, words),
     )
 
   private def getPrefixTuples(
     prefixLength: Int,
-    current: IndexesTrie,
+    current: IndexesTrieNode,
     prefix: String = "",
   ): Map[String, Map[Int, RoaringBitmap]] =
     current
@@ -52,7 +39,7 @@ final case class IndexesTrieRoot(
           else getPrefixTuples(prefixLength - 1, subTrie, newPrefix)
       }
 
-  def commitToDisk(): Unit = {
+  def commitToDisk(): IndexesTrie = {
     getPrefixTuples(PrefixLength, this.trie)
       .filter({ case (prefix, _) => dirtyBuckets.contains(getBucket(prefix)) })
       .groupBy({ case (prefix, _) => getBucket(prefix) })
@@ -66,19 +53,15 @@ final case class IndexesTrieRoot(
             }),
           )
       })
+    this.copy(dirtyBuckets=dirtyBuckets.empty)
   }
 
-  def matchesWithPrefix(prefix: String): Map[Int, RoaringBitmap] =
-    this.trie.matchesWithPrefix(prefix)
+  def matchesWithPrefix: String => Map[Int, RoaringBitmap] = this.trie.matchesWithPrefix
 
-  def matchesForWord(word: String): Map[Int, RoaringBitmap] =
-    this.trie.matchesForWord(word)
-
+  def matchesForWord: String => Map[Int, RoaringBitmap] = this.trie.matchesForWord
 }
 
-object IndexesTrieRoot {
-
-  import IndexesTrieShared._
+object IndexesTrie {
 
   private def decodeIndexLines: Iterator[String] => Iterator[(String, Map[Int, RoaringBitmap])] =
     _
@@ -93,21 +76,31 @@ object IndexesTrieRoot {
         (word -> matches)
       })
 
+  private def makeBucketFilename: Int => String =
+    StoragePath + "inverted_index/" + _ + "-bucket.csv"
 
-  def hydrate(): IndexesTrieRoot = {
-    val baseTrie = (0 until IndexBucketsNumber)
-      .foldLeft(IndexesTrie())((trie, bucket) =>
-        FileUtils.readFile(makeBucketFilename(bucket)) match {
-          case Success(lines) => decodeIndexLines(lines).foldLeft(trie)(_ insertTuple _)
-          case Failure(_) => trie
-        }
-      )
-    IndexesTrieRoot(trie=baseTrie)
+  private val IndexBucketsNumber = 1000
+
+  def hydrate(): IndexesTrie = {
+    val baseTrie =
+      (0 until IndexBucketsNumber)
+        .foldLeft(IndexesTrieNode())((trie, bucket) =>
+          FileUtils.readFile(makeBucketFilename(bucket)) match {
+            case Success(lines) => decodeIndexLines(lines).foldLeft(trie)(_ insertTuple _)
+            case Failure(_) => trie
+          }
+        )
+    IndexesTrie(trie=baseTrie)
   }
 }
 
-final case class IndexesTrie(
-  val children: Map[Char, IndexesTrie] = Map(),
+/* This implementation of a Trie uses Maps instead of Arrays to store the child nodes.
+ * This approach is slower to explore, but since we want this IndexesTrie to support
+ * all 16-bits characters of a Scala string, it was either Maps or Arrays of
+ * length 65535, which would have blown up memory use.
+ */
+final case class IndexesTrieNode(
+  val children: Map[Char, IndexesTrieNode] = Map(),
   private val matches: Map[Int, RoaringBitmap] = Map(),
 ) {
 
@@ -118,12 +111,12 @@ final case class IndexesTrie(
       .map(_.charValue) // 'a' is 97, 'b' is 98, etc
       .toList
 
-  def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrie =
+  def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrieNode =
     words.foldLeft(this)((acc, word) => {
-      def insertIndexes(indexes: Seq[Char], trie: IndexesTrie): IndexesTrie =
+      def insertIndexes(indexes: Seq[Char], trie: IndexesTrieNode): IndexesTrieNode =
         indexes match {
           case head +: Nil => {
-            val child = trie.children.getOrElse(head, IndexesTrie())
+            val child = trie.children.getOrElse(head, IndexesTrieNode())
             val currentMatches = child.matches.get(docId).getOrElse(new RoaringBitmap)
             currentMatches add lineNumber
             val newChildMatches = child.matches + (docId -> currentMatches)
@@ -134,7 +127,7 @@ final case class IndexesTrie(
           case head +: tail => {
             val newSubTrie = trie.children.get(head) match {
               case Some(subTrie) => insertIndexes(tail, subTrie)
-              case None => insertIndexes(tail, IndexesTrie())
+              case None => insertIndexes(tail, IndexesTrieNode())
             }
             trie.copy(trie.children + (head -> newSubTrie))
           }
@@ -148,7 +141,7 @@ final case class IndexesTrie(
       .map(_._2.getAllMatches)
       .foldLeft(this.matches)(_ |+| _)
 
-  private def getSubTrie(path: Seq[Char], trie: IndexesTrie): Option[IndexesTrie] =
+  private def getSubTrie(path: Seq[Char], trie: IndexesTrieNode): Option[IndexesTrieNode] =
     path match {
       case head +: Nil => trie.children.get(head)
       case head +: tail => trie.children.get(head).flatMap(getSubTrie(tail, _))
@@ -162,14 +155,14 @@ final case class IndexesTrie(
     getSubTrie(getIndexesFromString(word), this)
       .fold(Map[Int, RoaringBitmap]())(_.matches)
 
-  def insertTuple(wordAndMatches: (String, Map[Int, RoaringBitmap])): IndexesTrie = {
+  def insertTuple(wordAndMatches: (String, Map[Int, RoaringBitmap])): IndexesTrieNode = {
     val (word, matches) = wordAndMatches
     val path = getIndexesFromString(word)
 
-    def insertMatches(indexes: Seq[Char], trie: IndexesTrie): IndexesTrie =
+    def insertMatches(indexes: Seq[Char], trie: IndexesTrieNode): IndexesTrieNode =
       indexes match {
         case head +: Nil => {
-          val child = trie.children.getOrElse(head, IndexesTrie())
+          val child = trie.children.getOrElse(head, IndexesTrieNode())
           val newChild = child.copy(matches=matches)
           val newChildren = trie.children + (head -> newChild)
           trie.copy(children=newChildren)
@@ -177,7 +170,7 @@ final case class IndexesTrie(
         case head +: tail => {
           val newSubTrie = trie.children.get(head) match {
             case Some(subTrie) => insertMatches(tail, subTrie)
-            case None => insertMatches(tail, IndexesTrie())
+            case None => insertMatches(tail, IndexesTrieNode())
           }
           trie.copy(trie.children + (head -> newSubTrie))
         }
