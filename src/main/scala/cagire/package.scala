@@ -1,6 +1,6 @@
 package object cagire {
 
-  val StoragePath = "src/main/resources/"
+  val StoragePath = "data/"
   val ChunkSize = 5000
 }
 
