@@ -1,9 +1,6 @@
 package cagire
 
 import scala.util.Try
-import cats.implicits._
-import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.roaringbitmap.RoaringBitmap
 
 final case class Cagire(
@@ -21,13 +18,13 @@ final case class Cagire(
   private def addDocument(documentId: Int, filename: String): Cagire =
     this.copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
 
-  private def commitToDisk(): Cagire = {
+  def commitToDisk(): Cagire = {
     this.documentsIndex.commitToDisk()
     val newIndexesTrie = this.indexesTrie.commitToDisk()
     this.copy(indexesTrie=newIndexesTrie)
   }
 
-  private def ingestFileHandler(path: String): Try[Cagire] =
+  def ingestFileHandler(path: String): Try[Cagire] =
     DocumentHandling
       .getSplitDocument(path)
       .map(idAndChunks => {
@@ -42,42 +39,9 @@ final case class Cagire(
         newCagire.addDocument(documentId, filename)
       })
 
-  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).map(_.commitToDisk)
-
-  def ingestFiles: IterableOnce[String] => Try[Cagire] =
-    _
-      .iterator
-      .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
-      .map(_.commitToDisk)
+  def getFilename: Int => String = documentsIndex.getFilename
 
   def searchWord: String => Map[Int, RoaringBitmap] = indexesTrie.matchesForWord
 
   def searchPrefix: String => Map[Int, RoaringBitmap] = indexesTrie.matchesWithPrefix
-
-  private def formatResults: Map[Int, RoaringBitmap] => Try[Json] =
-    _
-      .map(matchTpl => {
-        val (documentId, linesMatches) = matchTpl
-        val filename = documentsIndex.getFilename(documentId)
-        DocumentHandling
-          .loadLinesFromDocument(documentId, linesMatches.toArray.toIndexedSeq)
-          .map((filename -> _))
-      })
-      .to(LazyList)
-      .sequence
-      .map(_.toMap.asJson)
-
-  def searchWordAndFormat: String => Try[Json] = searchWord >>> formatResults
-
-  def searchPrefixAndFormat: String => Try[Json] = searchPrefix >>> formatResults
-}
-
-object Cagire {
-
-  def bootstrap(): Cagire = {
-    for {
-      documentsIndex <- DocumentsIndex.hydrate
-      indexesTrie = IndexesTrie.hydrate
-    } yield (Cagire(documentsIndex, indexesTrie))
-  }.getOrElse(Cagire())
 }

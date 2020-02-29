@@ -73,14 +73,14 @@ object DocumentHandling {
   private def toAbsoluteLine(chunkNumber: Int, lineNumber: Int): Int =
     chunkNumber * ChunkSize + lineNumber
 
-  def loadLinesFromDocument(documentId: Int, targets: Seq[Int]): Try[Map[Int, String]] =
+  def loadLinesFromDocument(documentId: Int, targets: Iterable[Int]): Try[Map[Int, String]] =
     targets
       .groupBy(toChunkNumber)
       .map({
         case (chunkNumber, lineNumbers) =>
           val absoluteLineNumbers = lineNumbers map toRelativeLine
-          val targetsMinHeap = PriorityQueue(absoluteLineNumbers:_*)(Ordering[Int].reverse)
-          FileUtils.readFile(s"$StoragePath$documentId/$chunkNumber")
+          val targetsMinHeap = PriorityQueue(absoluteLineNumbers.toSeq:_*)(Ordering[Int].reverse)
+          FileUtils.readFile(s"$StoragePath/documents/$documentId/$chunkNumber")
             .map(loadLines(targetsMinHeap))
             .map(_.map({ case (lineNb, line) => (toAbsoluteLine(chunkNumber, lineNb), line) }))
       })
