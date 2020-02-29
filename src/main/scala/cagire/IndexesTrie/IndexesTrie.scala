@@ -14,12 +14,102 @@ import utils.RoaringBitmapMonoid.roaringBitmapMonoid
  * length 65535, which would have blown up memory use.
  */
 
-final case class IndexesTrie(
-  private val children: Map[Char, IndexesTrie] = Map(),
-  private val matches: Map[Int, RoaringBitmap] = Map(),
+object IndexesTrieShared {
+
+  def makeBucketFilename: Int => String = StoragePath + "inverted_index/" + _ + "-bucket.csv"
+
+  val IndexBucketsNumber = 200
+
+  val PrefixLength = 2
+
+  def getBucket: String => Int = _.hashCode % IndexBucketsNumber
+}
+
+final case class IndexesTrieRoot(
+  private val dirtyBuckets: Set[Int] = Set(),
+  private val trie: IndexesTrie = IndexesTrie(),
 ) {
 
-  import IndexesTrie._
+  import IndexesTrieShared._
+
+  def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrieRoot =
+    IndexesTrieRoot(
+      dirtyBuckets=(this.dirtyBuckets ++ words.map(_ take PrefixLength).map(getBucket)),
+      trie=this.trie.addLine(docId, lineNumber, words),
+    )
+
+  private def getPrefixTuples(
+    prefixLength: Int,
+    current: IndexesTrie,
+    prefix: String = "",
+  ): Map[String, Map[Int, RoaringBitmap]] =
+    current
+      .children
+      .flatMap {
+        case (char, subTrie) =>
+          val newPrefix = prefix :+ char
+          if (prefixLength === 1) subTrie.getTuples(newPrefix)
+          else getPrefixTuples(prefixLength - 1, subTrie, newPrefix)
+      }
+
+  def commitToDisk(): Unit = {
+    getPrefixTuples(PrefixLength, this.trie)
+      .filter({ case (prefix, _) => dirtyBuckets.contains(getBucket(prefix)) })
+      .groupBy({ case (prefix, _) => getBucket(prefix) })
+      .foreach({
+        case (bucket, matches) =>
+          FileUtils.writeCSVProgressively(
+            makeBucketFilename(bucket),
+            matches.iterator.map({
+              case (prefix, matches) =>
+                s"$prefix;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
+            }),
+          )
+      })
+  }
+
+  def matchesWithPrefix(prefix: String): Map[Int, RoaringBitmap] =
+    this.trie.matchesWithPrefix(prefix)
+
+  def matchesForWord(word: String): Map[Int, RoaringBitmap] =
+    this.trie.matchesForWord(word)
+
+}
+
+object IndexesTrieRoot {
+
+  import IndexesTrieShared._
+
+  private def decodeIndexLines: Iterator[String] => Iterator[(String, Map[Int, RoaringBitmap])] =
+    _
+      .map(line => {
+        val Array(word, matchesStr) = line.split(';')
+        val matches =
+          decode[Map[Int, Array[Int]]](matchesStr)
+            .getOrElse(Map())
+            .view
+            .mapValues(RoaringBitmap.bitmapOf(_:_*))
+            .toMap
+        (word -> matches)
+      })
+
+
+  def hydrate(): IndexesTrieRoot = {
+    val baseTrie = (0 until IndexBucketsNumber)
+      .foldLeft(IndexesTrie())((trie, bucket) =>
+        FileUtils.readFile(makeBucketFilename(bucket)) match {
+          case Success(lines) => decodeIndexLines(lines).foldLeft(trie)(_ insertTuple _)
+          case Failure(_) => trie
+        }
+      )
+    IndexesTrieRoot(trie=baseTrie)
+  }
+}
+
+final case class IndexesTrie(
+  val children: Map[Char, IndexesTrie] = Map(),
+  private val matches: Map[Int, RoaringBitmap] = Map(),
+) {
 
   private def getIndexesFromString: String => Seq[Char] =
     _
@@ -96,78 +186,11 @@ final case class IndexesTrie(
     insertMatches(path, this)
   }
 
-  private def getTuples(prefix: String): Iterator[(String, Map[Int, RoaringBitmap])] = {
+  def getTuples(prefix: String): Iterator[(String, Map[Int, RoaringBitmap])] = {
     val subTuples = this.children.view.to(Iterator).flatMap({
       case (char, subTrie) => subTrie.getTuples(prefix :+ char)
     })
     if (this.matches.isEmpty) subTuples
     else Iterator((prefix, this.matches)) ++ subTuples
   }
-
-  def isEmpty: Boolean = this.matches.isEmpty && this.children.isEmpty
-
-  private def getPrefixTuples(
-    prefixLength: Int,
-    current: IndexesTrie,
-    prefix: String = "",
-  ): Map[String, Map[Int, RoaringBitmap]] =
-    current
-      .children
-      .flatMap {
-        case (char, subTrie) =>
-          val newPrefix = prefix :+ char
-          if (prefixLength === 1) subTrie.getTuples(newPrefix)
-          else getPrefixTuples(prefixLength - 1, subTrie, newPrefix)
-      }
-
-  def commitToDisk(dirtyBuckets: Set[Int]): Unit = {
-    getPrefixTuples(PrefixLength, this)
-      .filter({ case (prefix, _) => dirtyBuckets.contains(getBucket(prefix)) })
-      .groupBy({ case (prefix, _) => getBucket(prefix) })
-      .foreach({
-        case (bucket, matches) =>
-          FileUtils.writeCSVProgressively(
-            makeBucketFilename(bucket),
-            matches.iterator.map({
-              case (prefix, matches) =>
-                s"$prefix;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
-            }),
-          )
-      })
-  }
-}
-
-object IndexesTrie {
-
-  def getBucket: String => Int = _.hashCode % IndexBucketsNumber
-
-  private def makeBucketFilename: Int => String =
-    StoragePath + "inverted_index/" + _ + "-bucket.csv"
-
-  private val IndexBucketsNumber = 200
-
-  val PrefixLength = 2
-
-  private def decodeIndexLines: Iterator[String] => Iterator[(String, Map[Int, RoaringBitmap])] =
-    _
-      .map(line => {
-        val Array(word, matchesStr) = line.split(';')
-        val matches =
-          decode[Map[Int, Array[Int]]](matchesStr)
-            .getOrElse(Map())
-            .view
-            .mapValues(RoaringBitmap.bitmapOf(_:_*))
-            .toMap
-        (word -> matches)
-      })
-
-
-  def hydrate(): IndexesTrie =
-    (0 until IndexBucketsNumber)
-      .foldLeft(IndexesTrie())((trie, bucket) =>
-        FileUtils.readFile(makeBucketFilename(bucket)) match {
-          case Success(lines) => decodeIndexLines(lines).foldLeft(trie)(_ insertTuple _)
-          case Failure(_) => trie
-        }
-      )
 }

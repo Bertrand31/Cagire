@@ -1,6 +1,7 @@
 package cagire
 
 import scala.util.Try
+import scala.util.chaining.scalaUtilChainingOps
 import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -8,25 +9,22 @@ import org.roaringbitmap.RoaringBitmap
 
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
-  private val indexesTrie: IndexesTrie = IndexesTrie(),
-  private val dirtyBuckets: Set[Int] = Set(),
+  private val indexesTrie: IndexesTrieRoot = IndexesTrieRoot(),
 ) {
 
   private def ingestLine(docId: Int)(cagire: Cagire, line: (String, Int)): Cagire = {
     val (lineString, lineNumber) = line
     val words = LineSanitizing.lineToWords(lineString)
-    val newDirtyBuckets = words.map(_.take(IndexesTrie.PrefixLength)).map(IndexesTrie.getBucket)
     val newTrie = cagire.indexesTrie.addLine(docId, lineNumber, words)
-    cagire.copy(indexesTrie=newTrie, dirtyBuckets=(this.dirtyBuckets ++ newDirtyBuckets))
+    cagire.copy(indexesTrie=newTrie)
   }
 
   private def addDocument(documentId: Int, filename: String): Cagire =
     this.copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
 
-  private def commitToDisk(): Cagire = {
+  private def commitToDisk(): Unit = {
     this.documentsIndex.commitToDisk()
-    this.indexesTrie.commitToDisk(this.dirtyBuckets)
-    this.copy(dirtyBuckets=this.dirtyBuckets.empty)
+    this.indexesTrie.commitToDisk()
   }
 
   private def ingestFileHandler(path: String): Try[Cagire] =
@@ -44,13 +42,13 @@ final case class Cagire(
         newCagire.addDocument(documentId, filename)
       })
 
-  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).map(_.commitToDisk)
+  def ingestFile: String => Try[Cagire] = ingestFileHandler(_).tap(_.map(_.commitToDisk))
 
   def ingestFiles: IterableOnce[String] => Try[Cagire] =
     _
       .iterator
       .foldLeft(Try(this))((acc, path) => acc.flatMap(_ ingestFileHandler path))
-      .map(_.commitToDisk)
+      .tap(_.map(_.commitToDisk))
 
   def searchWord: String => Map[Int, RoaringBitmap] = indexesTrie.matchesForWord
 
@@ -79,7 +77,7 @@ object Cagire {
   def bootstrap(): Cagire = {
     for {
       documentsIndex <- DocumentsIndex.hydrate
-      indexesTrie = IndexesTrie.hydrate
+      indexesTrie = IndexesTrieRoot.hydrate
     } yield (Cagire(documentsIndex, indexesTrie))
   }.getOrElse(Cagire())
 }
