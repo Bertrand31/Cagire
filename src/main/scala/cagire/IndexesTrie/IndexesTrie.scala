@@ -106,29 +106,31 @@ final case class IndexesTrie(
 
   def isEmpty: Boolean = this.matches.isEmpty && this.children.isEmpty
 
-  private def getBucket: String => Int = _.hashCode % IndexBucketsNumber
-
-  def commitToDisk(dirtyPrefixes: Set[String]): Unit = {
-    this.children
-      .flatMap({
+  private def getPrefixTuples(
+    prefixLength: Int,
+    current: IndexesTrie,
+    prefix: String = "",
+  ): Map[String, Map[Int, RoaringBitmap]] =
+    current
+      .children
+      .flatMap {
         case (char, subTrie) =>
-          subTrie.children.map({
-            case (subChar, subTrie) => (s"$char$subChar", subTrie)
-          })
-      })
-      .filter({ case (prefix, _) => dirtyPrefixes.contains(prefix) })
+          val newPrefix = prefix :+ char
+          if (prefixLength === 1) subTrie.getTuples(newPrefix)
+          else getPrefixTuples(prefixLength - 1, subTrie, newPrefix)
+      }
+
+  def commitToDisk(dirtyBuckets: Set[Int]): Unit = {
+    getPrefixTuples(PrefixLength, this)
+      .filter({ case (prefix, _) => dirtyBuckets.contains(getBucket(prefix)) })
       .groupBy({ case (prefix, _) => getBucket(prefix) })
       .foreach({
-        case (bucket, branches) =>
+        case (bucket, matches) =>
           FileUtils.writeCSVProgressively(
             makeBucketFilename(bucket),
-            branches.iterator.flatMap({
-              case (prefix, subTrie) =>
-                subTrie
-                  .getTuples(prefix)
-                  .map({ case (word, matches) =>
-                    s"$word;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
-                  })
+            matches.iterator.map({
+              case (prefix, matches) =>
+                s"$prefix;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
             }),
           )
       })
@@ -136,6 +138,8 @@ final case class IndexesTrie(
 }
 
 object IndexesTrie {
+
+  def getBucket: String => Int = _.hashCode % IndexBucketsNumber
 
   private def makeBucketFilename: Int => String =
     StoragePath + "inverted_index/" + _ + "-bucket.csv"

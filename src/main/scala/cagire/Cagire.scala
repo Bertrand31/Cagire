@@ -9,15 +9,15 @@ import org.roaringbitmap.RoaringBitmap
 final case class Cagire(
   private val documentsIndex: DocumentsIndex = DocumentsIndex(),
   private val indexesTrie: IndexesTrie = IndexesTrie(),
-  private val dirtyPrefixes: Set[String] = Set(),
+  private val dirtyBuckets: Set[Int] = Set(),
 ) {
 
   private def ingestLine(docId: Int)(cagire: Cagire, line: (String, Int)): Cagire = {
     val (lineString, lineNumber) = line
     val words = LineSanitizing.lineToWords(lineString)
-    val newDirtyPrefixes = this.dirtyPrefixes ++ words.map(_.take(IndexesTrie.PrefixLength))
+    val newDirtyBuckets = words.map(_.take(IndexesTrie.PrefixLength)).map(IndexesTrie.getBucket)
     val newTrie = cagire.indexesTrie.addLine(docId, lineNumber, words)
-    cagire.copy(indexesTrie=newTrie, dirtyPrefixes=newDirtyPrefixes)
+    cagire.copy(indexesTrie=newTrie, dirtyBuckets=(this.dirtyBuckets ++ newDirtyBuckets))
   }
 
   private def addDocument(documentId: Int, filename: String): Cagire =
@@ -25,8 +25,8 @@ final case class Cagire(
 
   private def commitToDisk(): Cagire = {
     this.documentsIndex.commitToDisk()
-    this.indexesTrie.commitToDisk(dirtyPrefixes)
-    this.copy(dirtyPrefixes=dirtyPrefixes.empty)
+    this.indexesTrie.commitToDisk(this.dirtyBuckets)
+    this.copy(dirtyBuckets=this.dirtyBuckets.empty)
   }
 
   private def ingestFileHandler(path: String): Try[Cagire] =
