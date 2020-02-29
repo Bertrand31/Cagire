@@ -25,11 +25,7 @@ class CagireController {
 
   private def formatBasic: Map[Int, RoaringBitmap] => Json =
     _
-      .map(matchTpl => {
-        val (documentId, linesMatches) = matchTpl
-        (cagire.getFilename(documentId) -> linesMatches.toArray)
-      })
-      .toMap
+      .map(_.bimap(cagire.getFilename, _.toArray))
       .asJson
 
   private def formatExtended: Map[Int, RoaringBitmap] => Try[Json] =
@@ -41,7 +37,7 @@ class CagireController {
           .loadLinesFromDocument(documentId, linesMatches.toArray)
           .map((filename -> _))
       })
-      .to(LazyList)
+      .toList
       .sequence
       .map(_.toMap.asJson)
 
