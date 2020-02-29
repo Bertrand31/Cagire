@@ -9,12 +9,7 @@ import org.roaringbitmap.RoaringBitmap
 
 class CagireController {
 
-  var cagire = {
-    for {
-      documentsIndex <- DocumentsIndex.hydrate
-      indexesTrie = IndexesTrie.hydrate
-    } yield (Cagire(documentsIndex, indexesTrie))
-  }.getOrElse(Cagire())
+  var cagire = Cagire.bootstrap()
 
   def ingestFiles(paths: IterableOnce[String]): Try[Cagire] =
     paths
@@ -40,7 +35,6 @@ class CagireController {
       .toList
       .sequence
       .map(_.toMap.asJson)
-
 
   def searchWordAndGetMatches: String => Json =
     this.cagire.searchWord >>> formatBasic

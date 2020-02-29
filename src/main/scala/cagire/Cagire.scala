@@ -45,3 +45,13 @@ final case class Cagire(
 
   def searchPrefix: String => Map[Int, RoaringBitmap] = indexesTrie.matchesWithPrefix
 }
+
+object Cagire {
+
+  def bootstrap(): Cagire = {
+    for {
+      documentsIndex <- DocumentsIndex.hydrate
+      indexesTrie = IndexesTrie.hydrate
+    } yield (Cagire(documentsIndex, indexesTrie))
+  }.getOrElse(Cagire())
+}
