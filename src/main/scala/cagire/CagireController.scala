@@ -1,7 +1,6 @@
 package cagire
 
 import scala.util.Try
-import scala.util.chaining.scalaUtilChainingOps
 import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -32,12 +31,11 @@ class CagireController {
         this.cagire = this.cagire.addDocument(documentId, filename)
       })
 
-  def ingestFiles(paths: IterableOnce[String]): Unit = {
-    paths
-      .iterator
-      .foreach(ingestFileHandler)
-    this.cagire = this.cagire.commitToDisk()
-  }
+  def ingestFiles: List[String] => Try[Unit] =
+    _
+      .map(ingestFileHandler)
+      .sequence
+      .map(_ => { this.cagire = this.cagire.commitToDisk() })
 
   private def formatBasic: Map[Int, RoaringBitmap] => Json =
     _

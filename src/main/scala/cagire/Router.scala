@@ -13,7 +13,7 @@ object Router {
 
   val cagireController = new CagireController
 
-  implicit val decoder = jsonOf[IO, Array[String]]
+  implicit val decoder = jsonOf[IO, List[String]]
 
   object ShowLinesParam extends OptionalQueryParamDecoderMatcher[Boolean]("show-lines")
 
@@ -29,11 +29,10 @@ object Router {
     HttpRoutes.of[IO] {
 
       case req @ POST -> Root / "ingest" =>
-        req.as[Array[String]] >>= (paths =>
-          {
-            cagireController.ingestFiles(paths)
-            Ok("Ingested")
-          }
+        req.as[List[String]] >>= (paths =>
+          handleTryJson(
+            cagireController.ingestFiles(paths).map(_ => "Ingested".asJson)
+          )
         )
 
       case GET -> Root / "search-prefix" / prefix :? ShowLinesParam(showLines) =>
