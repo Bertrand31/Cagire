@@ -1,6 +1,5 @@
 package cagire
 
-import scala.util.Try
 import org.roaringbitmap.RoaringBitmap
 
 final case class Cagire(

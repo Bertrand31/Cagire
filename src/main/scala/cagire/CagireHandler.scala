@@ -5,37 +5,45 @@ import cats.implicits._
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.roaringbitmap.RoaringBitmap
+import akka.actor.{Actor, Props}
 
-class CagireController {
+object CagireHandler {
 
-  var cagire = Cagire.bootstrap()
+  def props: Props = Props(new CagireHandler)
 
-  private def ingestLine(docId: Int)(line: (String, Int)): Unit = {
-    val (lineString, lineNumber) = line
-    val words = LineSanitizing.lineToWords(lineString)
-    val newTrie = cagire.indexesTrie.addLine(docId, lineNumber, words)
-    this.cagire = cagire.copy(indexesTrie=newTrie)
+  case class IngestPaths(paths: List[String])
+}
+
+class CagireHandler extends Actor {
+
+  import CagireFileHandler._
+  import CagireHandler.IngestPaths
+
+  private def createFileHandler = context.actorOf(CagireFileHandler.props)
+
+  private var cagire = Cagire.bootstrap()
+
+  private def handleLine(docId: Int, lineNumber: Int, words: Array[String]): Unit = {
+    val newTrie = this.cagire.indexesTrie.addLine(docId, lineNumber, words)
+    this.cagire = this.cagire.copy(indexesTrie=newTrie)
   }
 
-  def ingestFileHandler(path: String): Try[Unit] =
-    DocumentHandling
-      .getSplitDocument(path)
-      .map(idAndChunks => {
-        val (documentId, chunks) = idAndChunks
-        DocumentHandling.writeChunksAndCallback(
-          documentId,
-          chunks,
-          this.ingestLine(documentId),
-        )
-        val filename = path.split('/').last
-        this.cagire = this.cagire.addDocument(documentId, filename)
+  private def ingestFiles: List[String] => Unit =
+    _
+      .foreach(path => {
+        val fileHandler = createFileHandler
+        fileHandler ! CagireFileHandler.Path(path)
       })
 
-  def ingestFiles: List[String] => Try[Unit] =
-    _
-      .map(ingestFileHandler)
-      .sequence
-      .map(_ => { this.cagire = this.cagire.commitToDisk() })
+  def receive = {
+    case IngestPaths(paths) => ingestFiles(paths)
+    case Line(documentId, lineNumber, words) => handleLine(documentId, lineNumber, words)
+    case FileOver(documentId, filename) =>
+      this.cagire =
+        this.cagire
+          .addDocument(documentId, filename)
+          .commitToDisk()
+  }
 
   private def formatBasic: Map[Int, RoaringBitmap] => Json =
     _

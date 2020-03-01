@@ -9,6 +9,7 @@ scalaVersion := "2.13.1"
 val CirceVersion = "0.13.0"
 val Http4sVersion = "0.21.0"
 val Specs2Version = "4.1.0"
+val AkkaVersion = "2.6.3"
 
 libraryDependencies ++= Seq(
   // Web server
@@ -21,6 +22,8 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-core" % CirceVersion,
   "io.circe" %% "circe-generic" % CirceVersion,
   "io.circe" %% "circe-parser" % CirceVersion,
+  // Akka
+  "com.typesafe.akka" %% "akka-actor" % AkkaVersion,
   // Tests
   "org.scalatest" %% "scalatest" % "3.1.0",
   // Misc

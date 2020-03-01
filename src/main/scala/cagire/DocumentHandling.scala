@@ -12,11 +12,11 @@ object DocumentHandling {
 
   def getSplitDocument(path: String): Try[(Int, Iterator[(Seq[String], Int)])] =
     FileUtils.readFile(path)
-      .map(_.sliding(ChunkSize, ChunkSize).zip(Iterator from 0))
-      .map(fileIterator => {
-        val head = fileIterator.next
-        val documentId = MurmurHash3.orderedHash(head._1)
-        val completeIterator = Iterator(head) ++ fileIterator
+      .map(_.sliding(ChunkSize, ChunkSize).zipWithIndex)
+      .map(chunksIterator => {
+        val headChunk = chunksIterator.next
+        val documentId = MurmurHash3.orderedHash(headChunk._1)
+        val completeIterator = Iterator(headChunk) ++ chunksIterator
         (documentId -> completeIterator)
       })
 
@@ -83,7 +83,7 @@ object DocumentHandling {
             .map(loadLines(targetsMinHeap))
             .map(_.map({ case (lineNb, line) => (toAbsoluteLine(chunkNumber, lineNb), line) }))
       })
-      .to(LazyList)
+      .toList
       .sequence
       .map(_ foldMap identity)
 }
