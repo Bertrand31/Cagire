@@ -18,11 +18,11 @@ final case class Cagire(
   private def addDocument(documentId: Int, filename: String): Cagire =
     this.copy(documentsIndex=this.documentsIndex.addDocument(documentId, filename))
 
-  def commitToDisk(): Cagire = {
-    this.documentsIndex.commitToDisk()
-    val newIndexesTrie = this.indexesTrie.commitToDisk()
-    this.copy(indexesTrie=newIndexesTrie)
-  }
+  def commitToDisk(): Cagire =
+    Cagire(
+      documentsIndex=this.documentsIndex.commitToDisk(),
+      indexesTrie=this.indexesTrie.commitToDisk(),
+    )
 
   def ingestFileHandler(path: String): Try[Cagire] =
     DocumentHandling

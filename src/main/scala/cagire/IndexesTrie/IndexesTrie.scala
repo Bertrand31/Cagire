@@ -9,8 +9,8 @@ import utils.FileUtils
 import utils.RoaringBitmapMonoid.roaringBitmapMonoid
 
 final case class IndexesTrie(
-  private val dirtyBuckets: Set[Int] = Set(),
   private val trie: IndexesTrieNode = IndexesTrieNode(),
+  private val dirtyBuckets: Set[Int] = Set.empty,
 ) {
 
   import IndexesTrie._
@@ -21,8 +21,8 @@ final case class IndexesTrie(
 
   def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrie =
     IndexesTrie(
-      dirtyBuckets=(this.dirtyBuckets ++ words.map(_ take PrefixLength).map(getBucket)),
       trie=this.trie.addLine(docId, lineNumber, words),
+      dirtyBuckets=(this.dirtyBuckets ++ words.map(_ take PrefixLength).map(getBucket)),
     )
 
   private def getPrefixTuples(
@@ -46,7 +46,7 @@ final case class IndexesTrie(
       .foreach({
         case (bucket, matches) =>
           FileUtils.writeCSVProgressively(
-            makeBucketFilename(bucket),
+            getFilePathFromBucket(bucket),
             matches.iterator.map({
               case (prefix, matches) =>
                 s"$prefix;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
@@ -76,7 +76,7 @@ object IndexesTrie {
         (word -> matches)
       })
 
-  private def makeBucketFilename: Int => String =
+  private def getFilePathFromBucket: Int => String =
     StoragePath + "inverted_index/" + _ + "-bucket.csv"
 
   private val IndexBucketsNumber = 1000
@@ -85,7 +85,7 @@ object IndexesTrie {
     val baseTrie =
       (0 until IndexBucketsNumber)
         .foldLeft(IndexesTrieNode())((trie, bucket) =>
-          FileUtils.readFile(makeBucketFilename(bucket)) match {
+          FileUtils.readFile(getFilePathFromBucket(bucket)) match {
             case Success(lines) => decodeIndexLines(lines).foldLeft(trie)(_ insertTuple _)
             case Failure(_) => trie
           }
