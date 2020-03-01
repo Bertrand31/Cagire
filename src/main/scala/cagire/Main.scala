@@ -10,6 +10,7 @@ import org.http4s.server.blaze.BlazeServerBuilder
 object Server {
 
   def stream[F[_]: ConcurrentEffect](implicit t: Timer[IO], c: ContextShift[IO]): Stream[IO, Nothing] = {
+
     val httpApp = (
       Router.routes[IO]
     ).orNotFound

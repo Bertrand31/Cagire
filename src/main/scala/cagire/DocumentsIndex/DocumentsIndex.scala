@@ -13,7 +13,7 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
 
   def getFilename: Int => String = index
 
-  def commitToDisk(): Unit =
+  def commitToDisk(): DocumentsIndex = {
     FileUtils.writeCSVProgressively(
       DocumentsIndexFilePath,
       this.index
@@ -21,6 +21,8 @@ final case class DocumentsIndex(index: Map[Int, String] = Map()) {
         .to(Iterator)
         .map({ case (id, filename) => s"$id;$filename" }),
     )
+    this
+  }
 }
 
 object DocumentsIndex {

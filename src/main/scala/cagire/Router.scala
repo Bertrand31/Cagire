@@ -30,9 +30,10 @@ object Router {
 
       case req @ POST -> Root / "ingest" =>
         req.as[Array[String]] >>= (paths =>
-          handleTryJson(
-            cagireController.ingestFiles(paths).map(_ => "Ingested".asJson)
-          )
+          {
+            cagireController.ingestFiles(paths)
+            Ok("Ingested")
+          }
         )
 
       case GET -> Root / "search-prefix" / prefix :? ShowLinesParam(showLines) =>
@@ -49,4 +50,3 @@ object Router {
     }
   }
 }
-

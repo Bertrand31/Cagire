@@ -17,7 +17,7 @@ object DocumentHandling {
         val head = fileIterator.next
         val documentId = MurmurHash3.orderedHash(head._1)
         val completeIterator = Iterator(head) ++ fileIterator
-        (documentId, completeIterator)
+        (documentId -> completeIterator)
       })
 
   /** This method walks through an iterator of chunks, comitting them to the disk as well as
@@ -26,23 +26,22 @@ object DocumentHandling {
     * the responsibilities split between the main Cagire case class and this file, as well as
     * having to walk through the file only once (and avoid any mutation).
     */
-  def writeChunksAndAccumulate[A](
+  def writeChunksAndCallback[A](
     documentId: Int,
     chunks: Iterator[(Seq[String], Int)],
-    accumulator: A,
-    accFn: (A, (String, Int)) => A,
-  ): A = {
+    callback: ((String, Int)) => Unit,
+  ): Unit = {
     val subDirectoryPath = StoragePath + "documents/" + documentId
     new File(subDirectoryPath).mkdirs()
-    chunks.foldLeft(accumulator)((acc, chunkTpl) => {
+    chunks.foreach(chunkTpl => {
       val (chunk, chunkNumber) = chunkTpl
       val filePath = s"$subDirectoryPath/$chunkNumber"
       Using.resource(new PrintWriter(new File(filePath)))(writer =>
         chunk
           .zip(Iterator from toAbsoluteLine(chunkNumber, 1))
-          .foldLeft(acc)((subAcc, tpl) => {
+          .foreach(tpl => {
             writer.write(tpl._1 :+ '\n')
-            accFn(subAcc, tpl)
+            callback(tpl)
           })
        )
     })

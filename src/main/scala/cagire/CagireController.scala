@@ -11,12 +11,33 @@ class CagireController {
 
   var cagire = Cagire.bootstrap()
 
-  def ingestFiles(paths: IterableOnce[String]): Try[Cagire] =
+  private def ingestLine(docId: Int)(line: (String, Int)): Unit = {
+    val (lineString, lineNumber) = line
+    val words = LineSanitizing.lineToWords(lineString)
+    val newTrie = cagire.indexesTrie.addLine(docId, lineNumber, words)
+    this.cagire = cagire.copy(indexesTrie=newTrie)
+  }
+
+  def ingestFileHandler(path: String): Try[Unit] =
+    DocumentHandling
+      .getSplitDocument(path)
+      .map(idAndChunks => {
+        val (documentId, chunks) = idAndChunks
+        DocumentHandling.writeChunksAndCallback(
+          documentId,
+          chunks,
+          this.ingestLine(documentId),
+        )
+        val filename = path.split('/').last
+        this.cagire = this.cagire.addDocument(documentId, filename)
+      })
+
+  def ingestFiles(paths: IterableOnce[String]): Unit = {
     paths
       .iterator
-      .foldLeft(Try(this.cagire))((acc, path) => acc.flatMap(_ ingestFileHandler path))
-      .map(_.commitToDisk)
-      .tap(_.map { this.cagire = _ })
+      .foreach(ingestFileHandler)
+    this.cagire = this.cagire.commitToDisk()
+  }
 
   private def formatBasic: Map[Int, RoaringBitmap] => Json =
     _
