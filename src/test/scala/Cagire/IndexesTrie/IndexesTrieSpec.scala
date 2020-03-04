@@ -1,4 +1,4 @@
-import cagire.IndexesTrie
+import cagire.{IndexesTrie, IndexesTrieNode}
 import org.roaringbitmap.RoaringBitmap
 
 import org.scalatest.flatspec.AnyFlatSpec
@@ -53,8 +53,9 @@ class IndexesTrieSpec extends AnyFlatSpec {
 
   it should "insert matches 'as is'" in {
 
+    val trieNode = IndexesTrieNode()
     val matches = Map((123 -> RoaringBitmap.bitmapOf(1)))
-    val trieWithTuple = newTrie.insertTuple(("foo", matches))
-    assert(trieWithTuple.matchesForWord("foo") == Map((123 -> RoaringBitmap.bitmapOf(1))))
+    val trieNodeWithTuple = trieNode.insertTuple(("foo", matches))
+    assert(trieNodeWithTuple.matchesForWord("foo") == Map((123 -> RoaringBitmap.bitmapOf(1))))
   }
 }
