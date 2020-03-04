@@ -51,7 +51,7 @@ object Cagire {
   def bootstrap(): Cagire = {
     for {
       documentsIndex <- DocumentsIndex.hydrate
-      indexesTrie = IndexesTrie.hydrate
+      indexesTrie <- IndexesTrie.hydrate
     } yield (Cagire(documentsIndex, indexesTrie))
   }.getOrElse(Cagire())
 }

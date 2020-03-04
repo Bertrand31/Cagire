@@ -1,6 +1,7 @@
 package cagire
 
-import scala.util.{Failure, Success}
+import java.util.NoSuchElementException
+import scala.util.{Success, Try}
 import cats.implicits._
 import org.roaringbitmap.RoaringBitmap
 import io.circe.syntax.EncoderOps
@@ -18,6 +19,8 @@ final case class IndexesTrie(
   private val PrefixLength = 2
 
   private def getBucket: String => Int = _.hashCode % IndexBucketsNumber
+
+  def isEmpty: Boolean = this.trie.isEmpty
 
   def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrie =
     IndexesTrie(
@@ -49,7 +52,8 @@ final case class IndexesTrie(
             getFilePathFromBucket(bucket),
             matches.iterator.map({
               case (prefix, matches) =>
-                s"$prefix;${matches.view.mapValues(_.toArray).toMap.asJson.noSpaces}"
+                val matchesStr = matches.view.mapValues(_.toArray).toMap.asJson.noSpaces
+                s"$prefix;$matchesStr"
             }),
           )
       })
@@ -69,7 +73,7 @@ object IndexesTrie {
         val Array(word, matchesStr) = line.split(';')
         val matches =
           decode[Map[Int, Array[Int]]](matchesStr)
-            .getOrElse(Map())
+            .getOrElse(Map.empty)
             .view
             .mapValues(RoaringBitmap.bitmapOf(_:_*))
             .toMap
@@ -77,20 +81,22 @@ object IndexesTrie {
       })
 
   private def getFilePathFromBucket: Int => String =
-    StoragePath + "inverted_index/" + _ + "-bucket.csv"
+    StoragePath |+| "inverted_index/" |+| _.toString |+| "-bucket.csv"
 
   private val IndexBucketsNumber = 1000
 
-  def hydrate(): IndexesTrie = {
-    val baseTrie =
+  def hydrate(): Try[IndexesTrie] = {
+    val indexFiles =
       (0 until IndexBucketsNumber)
-        .foldLeft(IndexesTrieNode())((trie, bucket) =>
-          FileUtils.readFile(getFilePathFromBucket(bucket)) match {
-            case Success(lines) => decodeIndexLines(lines).foldLeft(trie)(_ insertTuple _)
-            case Failure(_) => trie
-          }
-        )
-    IndexesTrie(trie=baseTrie)
+        .map(getFilePathFromBucket >>> FileUtils.readFile)
+        .collect({ case Success(lines) => decodeIndexLines(lines) })
+    Either.cond(
+      !indexFiles.isEmpty,
+      IndexesTrie(
+        indexFiles.foldLeft(IndexesTrieNode())((acc, lines) => lines.foldLeft(acc)(_ insertTuple _))
+      ),
+      new NoSuchElementException("Could not read the inverted index from the disk"),
+    ).toTry
   }
 }
 
@@ -103,6 +109,8 @@ final case class IndexesTrieNode(
   val children: Map[Char, IndexesTrieNode] = Map(),
   private val matches: Map[Int, RoaringBitmap] = Map(),
 ) {
+
+  def isEmpty: Boolean = this.matches.isEmpty && this.children.isEmpty
 
   private def getIndexesFromString: String => Seq[Char] =
     _
@@ -153,7 +161,7 @@ final case class IndexesTrieNode(
 
   def matchesForWord(word: String): Map[Int, RoaringBitmap] =
     getSubTrie(getIndexesFromString(word), this)
-      .fold(Map[Int, RoaringBitmap]())(_.matches)
+      .fold(Map.empty[Int, RoaringBitmap])(_.matches)
 
   def insertTuple(wordAndMatches: (String, Map[Int, RoaringBitmap])): IndexesTrieNode = {
     val (word, matches) = wordAndMatches
