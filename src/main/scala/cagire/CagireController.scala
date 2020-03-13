@@ -11,8 +11,8 @@ class CagireController {
 
   private var cagire = Cagire.bootstrap()
 
-  def ingestFiles(paths: IterableOnce[String]): Try[Cagire] =
-    paths
+  def ingestFiles: IterableOnce[String] => Try[Cagire] =
+    _
       .iterator
       .foldLeft(Try(this.cagire))((acc, path) => acc.flatMap(_ ingestFileHandler path))
       .map(_.commitToDisk)
