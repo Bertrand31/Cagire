@@ -1,6 +1,7 @@
 package cagire
 
 import scala.util.Try
+import scala.util.chaining.scalaUtilChainingOps
 import scala.collection.immutable.ArraySeq
 import cats.effect.{IO, Sync}
 import cats.implicits._
@@ -39,14 +40,12 @@ object Router {
         req.as[ArraySeq[String]] >>= (cagireController.ingestFiles >>> handleTryJson)
 
       case GET -> Root / "search-and" / words :? ShowLinesParam(showLines) =>
-        applyFormatting(showLines) {
-          cagireController.searchWordsWithAnd(words)
-        }
+        cagireController.searchWordsWithAnd(words)
+          .pipe(applyFormatting(showLines))
 
       case GET -> Root / "search-or" / words :? ShowLinesParam(showLines) =>
-        applyFormatting(showLines) {
-          cagireController.searchWordsWithOr(words)
-        }
+        cagireController.searchWordsWithOr(words)
+          .pipe(applyFormatting(showLines))
     }
   }
 }
