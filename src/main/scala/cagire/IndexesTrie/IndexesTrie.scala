@@ -16,7 +16,9 @@ final case class IndexesTrie(
 
   import IndexesTrie._
 
-  private val PrefixLength = 2
+  // We'll use the hash of the first 2 letters of all
+  // words to determine which bucket they'll be stored in
+  private val BucketPrefixLength = 2
 
   private def getBucket: String => Int = _.hashCode % IndexBucketsNumber
 
@@ -25,7 +27,7 @@ final case class IndexesTrie(
   def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrie =
     IndexesTrie(
       trie=this.trie.addLine(docId, lineNumber, words),
-      dirtyBuckets=(this.dirtyBuckets ++ words.map(_ take PrefixLength).map(getBucket)),
+      dirtyBuckets=(this.dirtyBuckets ++ words.map(_ take BucketPrefixLength).map(getBucket)),
     )
 
   private def getPrefixTuples(
@@ -43,7 +45,7 @@ final case class IndexesTrie(
       }
 
   def commitToDisk(): IndexesTrie = {
-    getPrefixTuples(PrefixLength, this.trie)
+    getPrefixTuples(BucketPrefixLength, this.trie)
       .filter({ case (prefix, _) => dirtyBuckets.contains(getBucket(prefix)) })
       .groupBy({ case (prefix, _) => getBucket(prefix) })
       .foreach({
@@ -106,8 +108,8 @@ object IndexesTrie {
  * length 65535, which would have blown up memory use.
  */
 final case class IndexesTrieNode(
-  val children: Map[Char, IndexesTrieNode] = Map(),
-  private val matches: Map[Int, RoaringBitmap] = Map(),
+  val children: Map[Char, IndexesTrieNode] = Map.empty,
+  private val matches: Map[Int, RoaringBitmap] = Map.empty,
 ) {
 
   def isEmpty: Boolean = this.matches.isEmpty && this.children.isEmpty
@@ -151,13 +153,13 @@ final case class IndexesTrieNode(
 
   private def getSubTrie(path: Seq[Char], trie: IndexesTrieNode): Option[IndexesTrieNode] =
     path match {
-      case head +: Nil => trie.children.get(head)
+      case head +: Nil  => trie.children.get(head)
       case head +: tail => trie.children.get(head).flatMap(getSubTrie(tail, _))
     }
 
   def matchesWithPrefix(prefix: String): Map[Int, RoaringBitmap] =
     getSubTrie(getIndexesFromString(prefix), this)
-      .fold(Map[Int, RoaringBitmap]())(_.getAllMatches)
+      .fold(Map.empty[Int, RoaringBitmap])(_.getAllMatches)
 
   def matchesForWord(word: String): Map[Int, RoaringBitmap] =
     getSubTrie(getIndexesFromString(word), this)
@@ -169,26 +171,24 @@ final case class IndexesTrieNode(
 
     def insertMatches(indexes: Seq[Char], trie: IndexesTrieNode): IndexesTrieNode =
       indexes match {
-        case head +: Nil => {
+        case head +: Nil =>
           val child = trie.children.getOrElse(head, IndexesTrieNode())
           val newChild = child.copy(matches=matches)
           val newChildren = trie.children + (head -> newChild)
           trie.copy(children=newChildren)
-        }
-        case head +: tail => {
+        case head +: tail =>
           val newSubTrie = trie.children.get(head) match {
             case Some(subTrie) => insertMatches(tail, subTrie)
             case None => insertMatches(tail, IndexesTrieNode())
           }
           trie.copy(trie.children + (head -> newSubTrie))
-        }
       }
 
     insertMatches(path, this)
   }
 
   def getTuples(prefix: String): Iterator[(String, Map[Int, RoaringBitmap])] = {
-    val subTuples = this.children.view.to(Iterator).flatMap({
+    val subTuples = this.children.to(Iterator).flatMap({
       case (char, subTrie) => subTrie.getTuples(prefix :+ char)
     })
     if (this.matches.isEmpty) subTuples
