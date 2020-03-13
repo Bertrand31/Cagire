@@ -1,20 +1,20 @@
 package cagire
 
 import scala.util.Try
+import scala.collection.immutable.ArraySeq
 import cats.effect.{IO, Sync}
 import cats.implicits._
 import org.http4s.{HttpRoutes, Response}
 import org.http4s.dsl.io._
 import org.http4s.circe.{jsonEncoder, jsonOf}
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.roaringbitmap.RoaringBitmap
 
 object Router {
 
   val cagireController = new CagireController
 
-  implicit val decoder = jsonOf[IO, Array[String]]
+  implicit val decoder = jsonOf[IO, ArraySeq[String]]
 
   object ShowLinesParam extends OptionalQueryParamDecoderMatcher[Boolean]("show-lines")
 
@@ -36,11 +36,7 @@ object Router {
     HttpRoutes.of[IO] {
 
       case req @ POST -> Root / "ingest" =>
-        req.as[Array[String]] >>= (paths =>
-          handleTryJson(
-            cagireController.ingestFiles(paths).map(_ => "Ingested".asJson)
-          )
-        )
+        req.as[ArraySeq[String]] >>= (cagireController.ingestFiles >>> handleTryJson)
 
       case GET -> Root / "search-and" / words :? ShowLinesParam(showLines) =>
         applyFormatting(showLines) {

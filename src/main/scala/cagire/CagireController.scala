@@ -11,12 +11,13 @@ class CagireController {
 
   private var cagire = Cagire.bootstrap()
 
-  def ingestFiles: IterableOnce[String] => Try[Cagire] =
+  def ingestFiles: IterableOnce[String] => Try[Json] =
     _
       .iterator
       .foldLeft(Try(this.cagire))((acc, path) => acc.flatMap(_ ingestFileHandler path))
       .map(_.commitToDisk)
       .tap(_.map { this.cagire = _ })
+      .map(_ => "Ingested".asJson)
 
   def formatBasic: Map[Int, RoaringBitmap] => Json =
     _
