@@ -8,6 +8,7 @@ import org.http4s.dsl.io._
 import org.http4s.circe.{jsonEncoder, jsonOf}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import org.roaringbitmap.RoaringBitmap
 
 object Router {
 
@@ -24,6 +25,12 @@ object Router {
 
   private def handleTryJson: Try[Json] => IO[Response[IO]] = _.fold(handleError, Ok(_))
 
+  private def applyFormatting(showLines: Option[Boolean])(matchesMap: Map[Int, RoaringBitmap]) =
+    if (showLines getOrElse false)
+      handleTryJson(cagireController.formatExtended(matchesMap))
+    else
+      Ok(cagireController.formatBasic(matchesMap))
+
   def routes[F[_]: Sync]: HttpRoutes[IO] = {
 
     HttpRoutes.of[IO] {
@@ -35,17 +42,15 @@ object Router {
           )
         )
 
-      case GET -> Root / "search-prefix" / prefix :? ShowLinesParam(showLines) =>
-        if (showLines getOrElse false)
-          handleTryJson(cagireController.searchPrefixAndGetLines(prefix))
-        else
-          Ok(cagireController.searchPrefixAndGetMatches(prefix))
+      case GET -> Root / "search-and" / words :? ShowLinesParam(showLines) =>
+        applyFormatting(showLines) {
+          cagireController.searchWordsWithAnd(words)
+        }
 
-      case GET -> Root / "search" / word :? ShowLinesParam(showLines) =>
-        if (showLines getOrElse false)
-          handleTryJson(cagireController.searchWordAndGetLines(word))
-        else
-          Ok(cagireController.searchWordAndGetMatches(word))
+      case GET -> Root / "search-or" / words :? ShowLinesParam(showLines) =>
+        applyFormatting(showLines) {
+          cagireController.searchWordsWithOr(words)
+        }
     }
   }
 }

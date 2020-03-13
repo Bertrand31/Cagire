@@ -18,12 +18,12 @@ class CagireController {
       .map(_.commitToDisk)
       .tap(_.map { this.cagire = _ })
 
-  private def formatBasic: Map[Int, RoaringBitmap] => Json =
+  def formatBasic: Map[Int, RoaringBitmap] => Json =
     _
       .map(_.bimap(cagire.getFilename, _.toArray))
       .asJson
 
-  private def formatExtended: Map[Int, RoaringBitmap] => Try[Json] =
+  def formatExtended: Map[Int, RoaringBitmap] => Try[Json] =
     _
       .map(matchTpl => {
         val (documentId, linesMatches) = matchTpl
@@ -36,15 +36,7 @@ class CagireController {
       .sequence
       .map(_.toMap.asJson)
 
-  def searchWordAndGetMatches: String => Json =
-    this.cagire.searchWord >>> formatBasic
+  def searchWordsWithAnd: String => Map[Int, RoaringBitmap] = this.cagire.searchWordsAnd
 
-  def searchPrefixAndGetMatches: String => Json =
-    this.cagire.searchPrefix >>> formatBasic
-
-  def searchWordAndGetLines: String => Try[Json] =
-    this.cagire.searchWord >>> formatExtended
-
-  def searchPrefixAndGetLines: String => Try[Json] =
-    this.cagire.searchPrefix >>> formatExtended
+  def searchWordsWithOr: String => Map[Int, RoaringBitmap] = this.cagire.searchWordsOr
 }
