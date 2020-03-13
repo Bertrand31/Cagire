@@ -9,7 +9,7 @@ import org.roaringbitmap.RoaringBitmap
 
 class CagireController {
 
-  var cagire = Cagire.bootstrap()
+  private var cagire = Cagire.bootstrap()
 
   def ingestFiles(paths: IterableOnce[String]): Try[Cagire] =
     paths
