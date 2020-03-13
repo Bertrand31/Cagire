@@ -7,8 +7,7 @@ maintainer := "bertrandjun@gmail.com"
 scalaVersion := "2.13.1"
 
 val CirceVersion = "0.13.0"
-val Http4sVersion = "0.21.0"
-val Specs2Version = "4.1.0"
+val Http4sVersion = "0.21.1"
 
 libraryDependencies ++= Seq(
   // Web server
@@ -22,10 +21,10 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic" % CirceVersion,
   "io.circe" %% "circe-parser" % CirceVersion,
   // Tests
-  "org.scalatest" %% "scalatest" % "3.1.0",
+  "org.scalatest" %% "scalatest" % "3.1.1",
   // Misc
-  "org.roaringbitmap" % "RoaringBitmap" % "0.8.9",
-  "org.typelevel" %% "cats-core" % "2.1.0",
+  "org.roaringbitmap" % "RoaringBitmap" % "0.8.13",
+  "org.typelevel" %% "cats-core" % "2.1.1",
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
