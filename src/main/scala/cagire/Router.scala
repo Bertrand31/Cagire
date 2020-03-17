@@ -27,10 +27,8 @@ object Router {
   private def handleTryJson: Try[Json] => IO[Response[IO]] = _.fold(handleError, Ok(_))
 
   private def applyFormatting(showLines: Option[Boolean])(matchesMap: Map[Int, RoaringBitmap]) =
-    if (showLines getOrElse false)
-      handleTryJson(cagireController.formatExtended(matchesMap))
-    else
-      Ok(cagireController.formatBasic(matchesMap))
+    if (!showLines.getOrElse(false)) Ok(cagireController.formatBasic(matchesMap))
+    else handleTryJson(cagireController.formatExtended(matchesMap))
 
   def routes[F[_]: Sync]: HttpRoutes[IO] = {
 
