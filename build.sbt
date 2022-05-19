@@ -46,4 +46,6 @@ javaOptions ++= Seq(
   // "-XX:+UseParNewGC",
 )
 
+enablePlugins(JmhPlugin)
+
 enablePlugins(JavaServerAppPackaging)

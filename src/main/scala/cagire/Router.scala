@@ -15,8 +15,7 @@ object Router {
 
   val cagireController = new CagireController
 
-  implicit val decoder: EntityDecoder[IO, ArraySeq[String]] =
-    jsonOf[IO, ArraySeq[String]]
+  implicit val decoder: EntityDecoder[IO, ArraySeq[String]] = jsonOf[IO, ArraySeq[String]]
 
   object ShowLinesParam extends OptionalQueryParamDecoderMatcher[Boolean]("show-lines")
 
@@ -27,7 +26,8 @@ object Router {
 
   private def handleTryJson: Try[Json] => IO[Response[IO]] = _.fold(handleError, Ok(_))
 
-  private def applyFormatting(showLines: Option[Boolean])(matchesMap: Map[Int, RoaringBitmap]) =
+  private def applyFormatting(showLines: Option[Boolean])
+                             (matchesMap: Map[Int, RoaringBitmap]): IO[Response[IO]] =
     if (!showLines.getOrElse(false)) Ok(cagireController.formatBasic(matchesMap))
     else handleTryJson(cagireController.formatExtended(matchesMap))
 

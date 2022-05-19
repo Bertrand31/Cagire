@@ -82,7 +82,7 @@ object IndexesTrie {
       })
 
   private def getFilePathFromBucket: Int => String =
-    StoragePath |+| "inverted_index/" |+| _.toString |+| "-bucket.csv"
+    StoragePath ++ "inverted_index/" ++ _.toString ++ "-bucket.csv"
 
   private val IndexBucketsNumber = 1000
 

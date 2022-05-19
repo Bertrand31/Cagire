@@ -9,7 +9,7 @@ object FileUtils {
   def readFile(path: String): Try[Iterator[String]] =
     Try {
       Source
-        .fromFile(path)
+        .fromResource(path)
         .getLines
     }
 

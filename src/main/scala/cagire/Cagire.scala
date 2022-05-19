@@ -42,15 +42,15 @@ final case class Cagire(
         newCagire.addDocument(documentId, filename)
       })
 
-  def getFilename: Int => String = documentsIndex.getFilename
+  val getFilename: Int => String = documentsIndex.getFilename
 
-  def searchWordsOr: String => Map[Int, RoaringBitmap] =
+  val searchWordsOr: String => Map[Int, RoaringBitmap] =
     _.split(' ').toVector match {
-      case words :+ prefix => words.foldMap(indexesTrie.matchesForWord) |+| searchPrefix(prefix)
+      case words :+ prefix => words.foldMap(indexesTrie.matchesForWord) ++ searchPrefix(prefix)
       case _               => Map()
     }
 
-  def searchWordsAnd: String => Map[Int, RoaringBitmap] =
+  val searchWordsAnd: String => Map[Int, RoaringBitmap] =
     _.split(' ').toVector match {
       case words :+ prefix =>
         val wordsMatches = words.map(indexesTrie.matchesForWord)
@@ -72,7 +72,9 @@ final case class Cagire(
       case _ => Map()
     }
 
-  def searchPrefix: String => Map[Int, RoaringBitmap] = indexesTrie.matchesWithPrefix
+  val searchPrefix: String => Map[Int, RoaringBitmap] = indexesTrie.matchesWithPrefix
+
+  def numberOfDocuments: Int = documentsIndex.index.size
 }
 
 object Cagire {

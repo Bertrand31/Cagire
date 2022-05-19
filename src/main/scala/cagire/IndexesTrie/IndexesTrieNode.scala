@@ -10,53 +10,52 @@ import utils.RoaringBitmapMonoid.roaringBitmapMonoid
  * length 65535, which would have blown up memory use.
  */
 final case class IndexesTrieNode(
-  val children: Map[Char, IndexesTrieNode] = Map.empty,
+  children: Map[Char, IndexesTrieNode] = Map.empty,
   private val matches: Map[Int, RoaringBitmap] = Map.empty,
 ) {
 
   def isEmpty: Boolean = this.matches.isEmpty && this.children.isEmpty
 
-  private def getIndexesFromString: String => Seq[Char] =
+  private def getIndexesFromString: String => List[Char] =
     _
-      .toLowerCase
       .toCharArray
-      .map(_.charValue) // 'a' is 97, 'b' is 98, etc
+      .map(_.toLower.charValue) // 'a' is 97, 'b' is 98, etc
       .toList
 
-  def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrieNode =
-    words.foldLeft(this)((acc, word) => {
-      def insertIndexes(indexes: Seq[Char], trie: IndexesTrieNode): IndexesTrieNode =
-        indexes match {
-          case head +: Nil => {
-            val child = trie.children.getOrElse(head, IndexesTrieNode())
-            val currentMatches = child.matches.get(docId).getOrElse(new RoaringBitmap)
-            currentMatches add lineNumber
-            val newChildMatches = child.matches + (docId -> currentMatches)
-            val newChild = child.copy(matches=newChildMatches)
-            val newChildren = trie.children + (head -> newChild)
-            trie.copy(children=newChildren)
-          }
-          case head +: tail => {
-            val newSubTrie = trie.children.get(head) match {
-              case Some(subTrie) => insertIndexes(tail, subTrie)
-              case None => insertIndexes(tail, IndexesTrieNode())
-            }
-            trie.copy(trie.children + (head -> newSubTrie))
-          }
-        }
+  def addLine(docId: Int, lineNumber: Int, words: Array[String]): IndexesTrieNode = {
 
-      insertIndexes(getIndexesFromString(word), acc)
-    })
+    def insertIndexes(indexes: List[Char], trie: IndexesTrieNode): IndexesTrieNode =
+      indexes match {
+        case Nil => trie
+        case head :: Nil =>
+          val child = trie.children.getOrElse(head, IndexesTrieNode())
+          val currentMatches = child.matches.getOrElse(docId, new RoaringBitmap)
+          currentMatches add lineNumber
+          val newChildMatches = child.matches.updated(docId, currentMatches)
+          val newChild = child.copy(matches=newChildMatches)
+          val newChildren = trie.children.updated(head, newChild)
+          trie.copy(children=newChildren)
+        case head :: tail =>
+          val newSubTrie = trie.children.get(head) match {
+            case Some(subTrie) => insertIndexes(tail, subTrie)
+            case None => insertIndexes(tail, IndexesTrieNode())
+          }
+          trie.copy(trie.children.updated(head, newSubTrie))
+      }
+
+    words.foldLeft(this)((acc, word) => insertIndexes(getIndexesFromString(word), acc))
+  }
 
   private def getAllMatches: Map[Int, RoaringBitmap] =
     this.children
       .map(_._2.getAllMatches)
       .foldLeft(this.matches)(_ |+| _)
 
-  private def getSubTrie(path: Seq[Char], trie: IndexesTrieNode): Option[IndexesTrieNode] =
+  private def getSubTrie(path: List[Char], trie: IndexesTrieNode): Option[IndexesTrieNode] =
     path match {
-      case head +: Nil  => trie.children.get(head)
-      case head +: tail => trie.children.get(head).flatMap(getSubTrie(tail, _))
+      case Nil          => None
+      case head :: Nil  => trie.children.get(head)
+      case head :: tail => trie.children.get(head).flatMap(getSubTrie(tail, _))
     }
 
   def matchesWithPrefix(prefix: String): Map[Int, RoaringBitmap] =
@@ -71,14 +70,15 @@ final case class IndexesTrieNode(
     val (word, matches) = wordAndMatches
     val path = getIndexesFromString(word)
 
-    def insertMatches(indexes: Seq[Char], trie: IndexesTrieNode): IndexesTrieNode =
+    def insertMatches(indexes: List[Char], trie: IndexesTrieNode): IndexesTrieNode =
       indexes match {
-        case head +: Nil =>
+        case Nil => trie
+        case head :: Nil =>
           val child = trie.children.getOrElse(head, IndexesTrieNode())
           val newChild = child.copy(matches=matches)
-          val newChildren = trie.children + (head -> newChild)
+          val newChildren = trie.children.updated(head, newChild)
           trie.copy(children=newChildren)
-        case head +: tail =>
+        case head :: tail =>
           val newSubTrie = trie.children.get(head) match {
             case Some(subTrie) => insertMatches(tail, subTrie)
             case None => insertMatches(tail, IndexesTrieNode())
@@ -90,7 +90,7 @@ final case class IndexesTrieNode(
   }
 
   def getTuples(prefix: String): Iterator[(String, Map[Int, RoaringBitmap])] = {
-    val subTuples = this.children.to(Iterator).flatMap({
+    val subTuples = this.children.iterator.flatMap({
       case (char, subTrie) => subTrie.getTuples(prefix :+ char)
     })
     if (this.matches.isEmpty) subTuples
