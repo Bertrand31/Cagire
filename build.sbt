@@ -5,7 +5,7 @@ version := "1"
 scalaVersion := "3.1.0"
 
 val CirceVersion = "0.14.1"
-val Http4sVersion = "0.22.0"
+val Http4sVersion = "0.23.11"
 
 libraryDependencies ++= Seq(
   // Web server

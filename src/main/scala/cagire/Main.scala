@@ -2,14 +2,14 @@ package cagire
 
 import scala.concurrent.duration.DurationInt
 import cats.implicits._
-import cats.effect.{ConcurrentEffect, ContextShift, Timer, ExitCode, IO, IOApp}
+import cats.effect.{ExitCode, IO, IOApp}
 import fs2.Stream
 import org.http4s.implicits._
 import org.http4s.blaze.server.BlazeServerBuilder
 
 object Server {
 
-  def stream[F[_]: ConcurrentEffect](implicit t: Timer[IO], c: ContextShift[IO]): Stream[IO, Nothing] = {
+  def stream[F[_]]: Stream[IO, Nothing] = {
 
     val httpApp = (
       Router.routes[IO]
