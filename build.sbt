@@ -2,12 +2,10 @@ name := "Cagire"
 
 version := "1"
 
-maintainer := "bertrandjun@gmail.com"
+scalaVersion := "3.1.0"
 
-scalaVersion := "2.13.1"
-
-val CirceVersion = "0.13.0"
-val Http4sVersion = "0.21.1"
+val CirceVersion = "0.14.1"
+val Http4sVersion = "0.22.0"
 
 libraryDependencies ++= Seq(
   // Web server
@@ -16,18 +14,16 @@ libraryDependencies ++= Seq(
   "org.http4s"    %% "http4s-circe" % Http4sVersion,
   "org.http4s"    %% "http4s-dsl" % Http4sVersion,
   // JSON encoding and decoding
-  "io.circe"      %% "circe-generic" % CirceVersion,
+  "io.circe" %% "circe-generic" % CirceVersion,
   "io.circe" %% "circe-core" % CirceVersion,
   "io.circe" %% "circe-generic" % CirceVersion,
   "io.circe" %% "circe-parser" % CirceVersion,
   // Tests
-  "org.scalatest" %% "scalatest" % "3.1.1",
+  "org.scalatest" %% "scalatest" % "3.2.12",
   // Misc
-  "org.roaringbitmap" % "RoaringBitmap" % "0.8.13",
-  "org.typelevel" %% "cats-core" % "2.1.1",
+  "org.roaringbitmap" % "RoaringBitmap" % "0.9.27",
+  "org.typelevel" %% "cats-core" % "2.7.0",
 )
-
-addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
 
 scalacOptions ++= Seq(
   "-deprecation", // Warn about deprecated features
@@ -36,13 +32,9 @@ scalacOptions ++= Seq(
   "-language:existentials", // Existential types (besides wildcard types) can be written and inferred
   "-language:higherKinds", // Allow higher-kinded types
   "-unchecked", // Enable additional warnings where generated code depends on assumptions
-  "-Xlint:_", // Enable all available style warnings
-  "-Ywarn-macros:after", // Only inspect expanded trees when generating unused symbol warnings
-  "-Ywarn-unused:_", // Enables all unused warnings
-  "-Ywarn-value-discard", // Warn when non-Unit expression results are unused
 )
 
-scalacOptions in Test --= Seq(
+Test / scalacOptions --= Seq(
   "-Xlint:_",
   "-Ywarn-unused-import",
 )

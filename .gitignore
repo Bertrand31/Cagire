@@ -2,6 +2,7 @@ project
 target
 .bloop
 .metals
+.bsp
 
 data/
 documents/

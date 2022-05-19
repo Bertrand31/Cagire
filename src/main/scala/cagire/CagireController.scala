@@ -15,7 +15,7 @@ class CagireController {
     _
       .iterator
       .foldLeft(Try(this.cagire))((acc, path) => acc.flatMap(_ ingestFileHandler path))
-      .map(_.commitToDisk)
+      .map(_.commitToDisk())
       .tap(_.map { this.cagire = _ })
       .map(_ => "Ingested".asJson)
 
